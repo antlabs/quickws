@@ -1,0 +1,5 @@
+package tinyws
+
+func Test_Frame_Read(t *testing.T) {
+	br := bytes.NewReader([]byte(0x81, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f))
+}

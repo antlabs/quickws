@@ -1,6 +1,7 @@
 package tinyws
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 )
 
 var ErrNotFoundHijacker = errors.New("not found Hijacker")
+var strHeaderUpgrade = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
 
 type Upgrader struct {
 }
@@ -28,15 +30,29 @@ func Upgrade(r *http.Request, w http.ResponseWriter) (c *Conn, err error) {
 		return nil, err
 	}
 
+	writeResponse(r, rw.Writer)
 	return newConn(conn, rw), nil
+}
+
+func writeHeaderKey(w *bufio.Writer, key string) {
+	w.WriteString(key)
+	w.WriteString(": ")
+}
+
+func writeHeaderVal(w *bufio.Writer, val string) {
+	w.WriteString(val)
+	w.WriteString("\r\n")
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
-func writeResponse(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusSwitchingProtocols)
-	w.Header().Set("Upgrade", "websocket")
-	w.Header().Set("Connection", "Upgrade")
+func writeResponse(r *http.Request, w *bufio.Writer) {
+	w.WriteString(strHeaderUpgrade)
+	//写入Sec-WebSocket-Accept key
+	writeHeaderKey(w, "Sec-WebSocket-Accept")
+	//写入Sec-WebSocket-Accept vla
+	writeHeaderVal(w, r.Header.Get("Sec-WebSocket-Key"))
+	// TODO 5小点, 处理子协议
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.1

@@ -26,17 +26,18 @@ func Test_Frame_Read_NoMask(t *testing.T) {
 	assert.Equal(t, h.payloadLen, int64(len("Hello")))
 }
 
-func Test_Frame_Read_Mask(t *testing.T) {
+func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 	r := bytes.NewReader(haveMaskData)
 
-	h, err := readHeader(r)
-	assert.NoError(t, err)
-	all, err := io.ReadAll(r)
+	f, err := readFrame(r)
 	assert.NoError(t, err)
 
 	//fmt.Printf("opcode:%d", h.opcode)
-	assert.Equal(t, string(all), "Hello")
-	assert.Equal(t, h.payloadLen, int64(len("Hello")))
+	assert.Equal(t, string(f.payload), "Hello")
+
+	var w bytes.Buffer
+	writeFrame(&w, f)
+	assert.Equal(t, w.Bytes(), haveMaskData)
 }
 
 func Test_Frame_Write_NoMask(t *testing.T) {
@@ -50,7 +51,4 @@ func Test_Frame_Write_NoMask(t *testing.T) {
 	writeHeader(&w, h)
 	w.WriteString("Hello")
 	assert.Equal(t, w.Bytes(), noMaskData)
-}
-
-func Test_Frame_write_Mask(t *testing.T) {
 }

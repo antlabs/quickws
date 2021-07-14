@@ -16,3 +16,7 @@ const (
 	Ping
 	Pong
 )
+
+func (c Opcode) isControl() bool {
+	return c&0xF > 0
+}

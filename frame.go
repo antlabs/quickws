@@ -16,13 +16,37 @@ var ErrFramePayloadLength = errors.New("error frame payload length")
 
 type frameHeader struct {
 	payloadLen int64
-	opcode     int32
+	opcode     Opcode
 	maskValue  [4]byte
 	rsv1       bool
 	rsv2       bool
 	rsv3       bool
 	mask       bool
 	fin        bool
+}
+
+type frame struct {
+	frameHeader
+	payload []byte
+}
+
+func readFrame(r io.Reader) (f frame, err error) {
+	h, err := readHeader(r)
+	if err != nil {
+		return f, err
+	}
+
+	f.payload = make([]byte, h.payloadLen)
+
+	if _, err = io.ReadFull(r, f.payload); err != nil {
+		return f, err
+	}
+
+	f.frameHeader = h
+	if h.mask {
+		mask(f.payload, f.maskValue[:])
+	}
+	return f, nil
 }
 
 func readHeader(r io.Reader) (h frameHeader, err error) {
@@ -38,7 +62,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 	h.rsv1 = head[0]&(1<<6) > 0
 	h.rsv2 = head[0]&(1<<5) > 0
 	h.rsv2 = head[0]&(1<<4) > 0
-	h.opcode = int32(head[0] & 0xF)
+	h.opcode = Opcode(head[0] & 0xF)
 
 	have := 0
 	h.mask = head[1]&(1<<7) > 0
@@ -133,4 +157,13 @@ func writeHeader(w io.Writer, h frameHeader) (err error) {
 
 	_, err = w.Write(head[:have])
 	return err
+}
+
+func writeFrame(w io.Writer, f frame) (err error) {
+	writeHeader(w, f.frameHeader)
+	if f.mask {
+		mask(f.payload, f.maskValue[:])
+	}
+	_, err = w.Write(f.payload)
+	return
 }

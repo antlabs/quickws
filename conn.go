@@ -2,6 +2,7 @@ package tinyws
 
 import (
 	"bufio"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -15,6 +16,8 @@ type Conn struct {
 }
 
 func newConn(c net.Conn, rw *bufio.ReadWriter) *Conn {
+	rw.Reader.Reset(c)
+
 	return &Conn{c: c, r: rw.Reader, w: rw.Writer}
 }
 
@@ -31,12 +34,16 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
 	for {
 		f, err = readFrame(c.r)
-		if err != nil {
-			return
+
+		if f.opcode != Continuation && !f.opcode.isControl() {
+			if err == io.EOF {
+				err = nil
+			}
+			return f.payload, f.opcode, err
 		}
 
-		if !f.opcode.isControl() {
-			return f.payload, f.opcode, nil
+		if err != nil {
+			return
 		}
 	}
 }
@@ -59,7 +66,7 @@ func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 	return writeFrame(c.w, f)
 }
 
-func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Time) (err error) {
+func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error) {
 	c.c.SetDeadline(time.Now().Add(t))
 	defer c.c.SetDeadline(time.Time{})
 	return c.WriteMessage(op, data)

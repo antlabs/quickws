@@ -1,13 +1,5 @@
 package tinyws
 
-import (
-	"fmt"
-	"net/http"
-	"os"
-	"testing"
-	"time"
-)
-
 /*
 func Test_Server(t *testing.T) {
 	h1 := func(w http.ResponseWriter, r *http.Request) {

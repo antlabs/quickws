@@ -12,7 +12,6 @@ import (
 type DialOption struct {
 	Header http.Header
 	u      *url.URL
-	c      *http.Client
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
@@ -26,9 +25,6 @@ func Dail(rawUrl string) (*Conn, error) {
 	}
 
 	dial.u = u
-	if dial.c == nil {
-		dial.c = http.DefaultClient
-	}
 	if dial.Header == nil {
 		dial.Header = make(http.Header)
 	}
@@ -50,7 +46,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	// 第2点 GET约束http 1.1版本约束
 	req, err := http.NewRequest("GET", d.u.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	// 第5点
 	d.Header.Add("Upgrade", "websocket")
@@ -69,7 +65,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 
 // 检查服务端响应的数据
 // 4.2.2.5
-func (d *DialOption) validateRsp(rsp *http.Response, sec string) error {
+func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error {
 	if rsp.StatusCode != 101 {
 		return errors.New("状态码不对")
 	}
@@ -98,7 +94,7 @@ func (d *DialOption) validateRsp(rsp *http.Response, sec string) error {
 func (d *DialOption) Dial() (*Conn, error) {
 
 	//检查响应值的合法性
-	req, secWebsocket, err := d.handshake()
+	req, secWebSocket, err := d.handshake()
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +105,8 @@ func (d *DialOption) Dial() (*Conn, error) {
 	}
 
 	req.Write(conn)
-	brw := bufio.NewReadWriter(conn)
-	rsp, err := http.ReadResponse(brw, req)
+	brw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	rsp, err := http.ReadResponse(brw.Reader, req)
 	if err != nil {
 		return nil, err
 	}

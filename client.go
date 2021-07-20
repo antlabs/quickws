@@ -1,7 +1,9 @@
 package tinyws
 
 import (
+	"bufio"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,7 +36,7 @@ func Dail(rawUrl string) (*Conn, error) {
 }
 
 // 准备握手的数据
-func (d *DialOption) handshake() (*http.Request, error) {
+func (d *DialOption) handshake() (*http.Request, string, error) {
 	switch {
 	case d.u.Scheme == "wss":
 		d.u.Scheme = "https"
@@ -55,17 +57,19 @@ func (d *DialOption) handshake() (*http.Request, error) {
 	// 第6点
 	d.Header.Add("Connection", "Upgrade")
 	// 第7点
-	d.Header.Add("Sec-WebSocket-Key", secWebSocketAccept())
+	secWebSocket := secWebSocketAccept()
+	d.Header.Add("Sec-WebSocket-Key", secWebSocket)
 	// TODO 第8点
 	// 第9点
 	d.Header.Add("Sec-WebSocket-Version", "13")
 	req.Header = d.Header
-	return req, nil
+	return req, secWebSocket, nil
 
 }
 
 // 检查服务端响应的数据
-func (d *DialOption) validateRsp(rsp *http.Response) error {
+// 4.2.2.5
+func (d *DialOption) validateRsp(rsp *http.Response, sec string) error {
 	if rsp.StatusCode != 101 {
 		return errors.New("状态码不对")
 	}
@@ -81,26 +85,38 @@ func (d *DialOption) validateRsp(rsp *http.Response) error {
 	}
 
 	// 第4点
+	if strings.EqualFold(rsp.Header.Get("Sec-WebSocket-Accept"), secWebSocketAcceptVal(secWebSocket)) {
+		return errors.New("sec websocket accept错误")
+	}
+
+	// TODO 5点
+
+	// TODO 6点
 	return nil
 }
 
 func (d *DialOption) Dial() (*Conn, error) {
 
 	//检查响应值的合法性
-	req, err := d.handshake()
+	req, secWebsocket, err := d.handshake()
 	if err != nil {
 		return nil, err
 	}
 
-	rsp, err := d.c.Do(req)
+	conn, err := net.Dial("tcp", d.u.Host /* TODO 加端号*/)
 	if err != nil {
-		if rsp != nil {
-			rsp.Body.Close()
-		}
 		return nil, err
 	}
 
-	d.validateRsp(rsp)
-	//TODO new conn
-	return nil, nil
+	req.Write(conn)
+	brw := bufio.NewReadWriter(conn)
+	rsp, err := http.ReadResponse(brw, req)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = d.validateRsp(rsp, secWebSocket); err != nil {
+		return nil, err
+	}
+	return newConn(conn, brw), nil
 }

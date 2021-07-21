@@ -9,16 +9,17 @@ import (
 )
 
 type Conn struct {
-	r  *bufio.Reader
-	w  *bufio.Writer
-	c  net.Conn
-	rw sync.Mutex
+	r      *bufio.Reader
+	w      *bufio.Writer
+	c      net.Conn
+	rw     sync.Mutex
+	client bool
 }
 
-func newConn(c net.Conn, rw *bufio.ReadWriter) *Conn {
+func newConn(c net.Conn, rw *bufio.ReadWriter, client bool) *Conn {
 	rw.Reader.Reset(c)
 
-	return &Conn{c: c, r: rw.Reader, w: rw.Writer}
+	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client}
 }
 
 func (c *Conn) nextFrame() (h frameHeader, err error) {
@@ -60,10 +61,20 @@ func (c *Conn) ReadTimeout(t time.Duration) (all []byte, op Opcode, err error) {
 
 func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 	var f frame
+	f.fin = true
 	f.opcode = op
 	f.payload = data
+	f.payloadLen = int64(len(data))
+	f.opcode = op
+	if c.client {
+		f.mask = true
+		newMask(f.maskValue[:])
+	}
 
-	return writeFrame(c.w, f)
+	if err := writeFrame(c.w, f); err != nil {
+		return err
+	}
+	return c.w.Flush()
 }
 
 func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error) {

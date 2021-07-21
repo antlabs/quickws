@@ -3,6 +3,7 @@ package tinyws
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,7 +17,7 @@ type DialOption struct {
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
 // 又是一顿if else, 咬文嚼字
-func Dail(rawUrl string) (*Conn, error) {
+func Dial(rawUrl string) (*Conn, error) {
 
 	var dial DialOption
 	u, err := url.Parse(rawUrl)
@@ -67,7 +68,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 // 4.2.2.5
 func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error {
 	if rsp.StatusCode != 101 {
-		return errors.New("状态码不对")
+		return fmt.Errorf("状态码不对:%d", rsp.StatusCode)
 	}
 
 	// 第2点
@@ -81,7 +82,7 @@ func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error 
 	}
 
 	// 第4点
-	if strings.EqualFold(rsp.Header.Get("Sec-WebSocket-Accept"), secWebSocketAcceptVal(secWebSocket)) {
+	if !strings.EqualFold(rsp.Header.Get("Sec-WebSocket-Accept"), secWebSocketAcceptVal(secWebSocket)) {
 		return errors.New("sec websocket accept错误")
 	}
 
@@ -114,5 +115,5 @@ func (d *DialOption) Dial() (*Conn, error) {
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {
 		return nil, err
 	}
-	return newConn(conn, brw), nil
+	return newConn(conn, brw, true), nil
 }

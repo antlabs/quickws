@@ -20,6 +20,10 @@ func StringToBytes(s string) (b []byte) {
 	return b
 }
 
+func newMask(mask []byte) {
+	rand.Read(mask)
+}
+
 func secWebSocketAccept() string {
 	// rfc规定是16字节
 	key := make([]byte, 16)

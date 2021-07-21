@@ -33,7 +33,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request) (c *Conn, err error) {
 	}
 
 	writeResponse(r, rw.Writer)
-	return newConn(conn, rw), nil
+	return newConn(conn, rw, true), nil
 }
 
 func writeHeaderKey(w *bufio.Writer, key string) {

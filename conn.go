@@ -65,7 +65,6 @@ func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 	f.opcode = op
 	f.payload = data
 	f.payloadLen = int64(len(data))
-	f.opcode = op
 	if c.client {
 		f.mask = true
 		newMask(f.maskValue[:])

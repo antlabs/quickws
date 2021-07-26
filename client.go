@@ -2,7 +2,6 @@ package tinyws
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -68,22 +67,22 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 // 4.2.2.5
 func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error {
 	if rsp.StatusCode != 101 {
-		return fmt.Errorf("状态码不对:%d", rsp.StatusCode)
+		return fmt.Errorf("%w %d", ErrWrongStatusCode, rsp.StatusCode)
 	}
 
 	// 第2点
 	if !strings.EqualFold(rsp.Header.Get("Upgrade"), "websocket") {
-		return errors.New("Upgrade的值不对")
+		return ErrUpgradeFieldValue
 	}
 
 	// 第3点
 	if !strings.EqualFold(rsp.Header.Get("Connection"), "Upgrade") {
-		return errors.New("Connection的值不对")
+		return ErrConnectionFieldValue
 	}
 
 	// 第4点
 	if !strings.EqualFold(rsp.Header.Get("Sec-WebSocket-Accept"), secWebSocketAcceptVal(secWebSocket)) {
-		return errors.New("sec websocket accept错误")
+		return ErrSecWebSocketAccept
 	}
 
 	// TODO 5点
@@ -105,7 +104,10 @@ func (d *DialOption) Dial() (*Conn, error) {
 		return nil, err
 	}
 
-	req.Write(conn)
+	if err := req.Write(conn); err != nil {
+		return nil, err
+	}
+
 	brw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
 	rsp, err := http.ReadResponse(brw.Reader, req)
 	if err != nil {

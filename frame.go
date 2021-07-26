@@ -142,12 +142,10 @@ func writeHeader(w io.Writer, h frameHeader) (err error) {
 		head[1] = 126
 		binary.BigEndian.PutUint16(head[2:], uint16(h.payloadLen))
 		have += 2 // 2前
-	case h.payloadLen <= math.MaxInt64:
+	default:
 		head[1] = 127
 		binary.BigEndian.PutUint64(head[2:], uint64(h.payloadLen))
 		have += 8
-	default:
-		return ErrFramePayloadLength
 	}
 
 	if h.mask {
@@ -160,7 +158,9 @@ func writeHeader(w io.Writer, h frameHeader) (err error) {
 }
 
 func writeFrame(w io.Writer, f frame) (err error) {
-	writeHeader(w, f.frameHeader)
+	if err = writeHeader(w, f.frameHeader); err != nil {
+		return
+	}
 	if f.mask {
 		mask(f.payload, f.maskValue[:])
 	}

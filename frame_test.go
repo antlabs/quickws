@@ -36,7 +36,7 @@ func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 	assert.Equal(t, string(f.payload), "Hello")
 
 	var w bytes.Buffer
-	writeFrame(&w, f)
+	assert.NoError(t, writeFrame(&w, f))
 	assert.Equal(t, w.Bytes(), haveMaskData)
 }
 
@@ -48,7 +48,9 @@ func Test_Frame_Write_NoMask(t *testing.T) {
 	h.payloadLen = int64(5)
 	h.opcode = 1
 	h.fin = true
-	writeHeader(&w, h)
-	w.WriteString("Hello")
+	assert.NoError(t, writeHeader(&w, h))
+	_, err := w.WriteString("Hello")
+
+	assert.NoError(t, err)
 	assert.Equal(t, w.Bytes(), noMaskData)
 }

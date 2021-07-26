@@ -32,32 +32,58 @@ func Upgrade(w http.ResponseWriter, r *http.Request) (c *Conn, err error) {
 		return nil, err
 	}
 
-	writeResponse(r, rw.Writer)
+	if err = writeResponse(r, rw.Writer); err != nil {
+		return
+	}
+
 	return newConn(conn, rw, true), nil
 }
 
-func writeHeaderKey(w *bufio.Writer, key string) {
-	w.WriteString(key)
-	w.WriteString(": ")
+func writeHeaderKey(w *bufio.Writer, key string) (err error) {
+	if _, err = w.WriteString(key); err != nil {
+		return
+	}
+	if _, err = w.WriteString(": "); err != nil {
+		return
+	}
+	return
 }
 
-func writeHeaderVal(w *bufio.Writer, val string) {
-	w.WriteString(val)
-	w.WriteString("\r\n")
+func writeHeaderVal(w *bufio.Writer, val string) (err error) {
+	if _, err = w.WriteString(val); err != nil {
+		return
+	}
+
+	if _, err = w.WriteString("\r\n"); err != nil {
+		return
+	}
+	return
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
-func writeResponse(r *http.Request, w *bufio.Writer) {
-	w.WriteString(strHeaderUpgrade)
-	//写入Sec-WebSocket-Accept key
-	writeHeaderKey(w, "Sec-WebSocket-Accept")
-	//写入Sec-WebSocket-Accept vla
-	writeHeaderVal(w, secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key")))
+func writeResponse(r *http.Request, w *bufio.Writer) (err error) {
+	if _, err = w.WriteString(strHeaderUpgrade); err != nil {
+		return
+	}
 
-	w.WriteString(strCRLF)
+	//写入Sec-WebSocket-Accept key
+	if err = writeHeaderKey(w, "Sec-WebSocket-Accept"); err != nil {
+		return
+	}
+	//写入Sec-WebSocket-Accept vla
+	if err = writeHeaderVal(w, secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))); err != nil {
+		return
+	}
+
+	if _, err = w.WriteString(strCRLF); err != nil {
+		return
+	}
 	// TODO 5小点, 处理子协议
-	w.Flush()
+	if err = w.Flush(); err != nil {
+		return
+	}
+	return
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.1
@@ -66,38 +92,38 @@ func checkRequest(r *http.Request) (ecode int, err error) {
 	// 不是get方法的
 	if r.Method != http.MethodGet {
 		//TODO错误消息
-		return http.StatusMethodNotAllowed, fmt.Errorf(":got:%s", r.Method)
+		return http.StatusMethodNotAllowed, fmt.Errorf("%w :%s", ErrOnlyGETSupported, r.Method)
 	}
 	// http版本低于1.1
 	if !r.ProtoAtLeast(1, 1) {
 		//TODO错误消息
-		return http.StatusHTTPVersionNotSupported, fmt.Errorf("HTTP Version Not Supported")
+		return http.StatusHTTPVersionNotSupported, ErrHTTPProtocolNotSupported
 	}
 
 	// 没有host字段的
 	if r.Host == "" {
-		return http.StatusBadRequest, fmt.Errorf("host 不能为空")
+		return http.StatusBadRequest, ErrHostCannotBeEmpty
 	}
 
 	// Upgrade值不等于websocket的
 	if upgrade := r.Header.Get("Upgrade"); !strings.EqualFold(upgrade, "websocket") {
-		return http.StatusBadRequest, fmt.Errorf("host 不能为空")
+		return http.StatusBadRequest, ErrUpgradeFieldValue
 	}
 
 	// Connection值不是Upgrade
 	if conn := r.Header.Get("Connection"); !strings.EqualFold(conn, "Upgrade") {
-		return http.StatusBadRequest, fmt.Errorf("Connection的值不是Upgrader")
+		return http.StatusBadRequest, ErrConnectionFieldValue
 	}
 
 	// Sec-WebSocket-Key解码之后是16字节长度
 	// TODO后续优化
 	if len(r.Header.Get("Sec-WebSocket-Key")) == 0 {
-		return http.StatusBadRequest, fmt.Errorf("Sec-WebSocket-Key长度不是16")
+		return http.StatusBadRequest, ErrSecWebSocketKey
 	}
 
 	// Sec-WebSocket-Version的版本不是13的
 	if r.Header.Get("Sec-WebSocket-Version") != "13" {
-		return http.StatusUpgradeRequired, fmt.Errorf("Sec-WebSocket-Version内容不是13")
+		return http.StatusUpgradeRequired, ErrSecWebSocketVersion
 	}
 
 	// TODO Sec-WebSocket-Protocol

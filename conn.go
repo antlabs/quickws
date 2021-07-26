@@ -22,15 +22,6 @@ func newConn(c net.Conn, rw *bufio.ReadWriter, client bool) *Conn {
 	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client}
 }
 
-func (c *Conn) nextFrame() (h frameHeader, err error) {
-	h, err = readHeader(c.r)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
 	for {
@@ -54,8 +45,11 @@ func (c *Conn) ReadMessage() (all []byte, op Opcode, err error) {
 }
 
 func (c *Conn) ReadTimeout(t time.Duration) (all []byte, op Opcode, err error) {
-	c.c.SetDeadline(time.Now().Add(t))
-	defer c.c.SetDeadline(time.Time{})
+	if err = c.c.SetDeadline(time.Now().Add(t)); err != nil {
+		return
+	}
+
+	defer func() { _ = c.c.SetDeadline(time.Time{}) }()
 	return c.readLoop()
 }
 
@@ -77,7 +71,10 @@ func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 }
 
 func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error) {
-	c.c.SetDeadline(time.Now().Add(t))
-	defer c.c.SetDeadline(time.Time{})
+	if err = c.c.SetDeadline(time.Now().Add(t)); err != nil {
+		return
+	}
+
+	defer func() { _ = c.c.SetDeadline(time.Time{}) }()
 	return c.WriteMessage(op, data)
 }

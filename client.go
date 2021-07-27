@@ -2,6 +2,7 @@ package tinyws
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -40,6 +41,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 		d.u.Scheme = "http"
 	default:
 		//TODO 返回错误
+		return nil, "", fmt.Errorf("未知的scheme:%s", d.u.Scheme)
 	}
 
 	// 满足4.1
@@ -91,6 +93,15 @@ func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error 
 	return nil
 }
 
+func (d *DialOption) tlsConn(c net.Conn) net.Conn {
+	if d.u.Scheme == "https" {
+		cfg := &tls.Config{}
+		return tls.Client(c, cfg)
+	}
+
+	return c
+}
+
 func (d *DialOption) Dial() (*Conn, error) {
 
 	//检查响应值的合法性
@@ -103,6 +114,8 @@ func (d *DialOption) Dial() (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	conn = d.tlsConn(conn)
 
 	if err := req.Write(conn); err != nil {
 		return nil, err
@@ -117,5 +130,6 @@ func (d *DialOption) Dial() (*Conn, error) {
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {
 		return nil, err
 	}
+
 	return newConn(conn, brw, true), nil
 }

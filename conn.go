@@ -55,9 +55,13 @@ func (c *Conn) ReadTimeout(t time.Duration) (all []byte, op Opcode, err error) {
 
 func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 	var f frame
+	// 这里可以用sync.Pool优化下
+	writeBuf := make([]byte, len(data))
+	copy(writeBuf, data)
+
 	f.fin = true
 	f.opcode = op
-	f.payload = data
+	f.payload = writeBuf
 	f.payloadLen = int64(len(data))
 	if c.client {
 		f.mask = true
@@ -77,4 +81,8 @@ func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error)
 
 	defer func() { _ = c.c.SetDeadline(time.Time{}) }()
 	return c.WriteMessage(op, data)
+}
+
+func (c *Conn) Close() error {
+	return c.c.Close()
 }

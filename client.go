@@ -11,13 +11,14 @@ import (
 )
 
 type DialOption struct {
-	Header http.Header
-	u      *url.URL
+	Header    http.Header
+	u         *url.URL
+	tlsConfig *tls.Config
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
 // 又是一顿if else, 咬文嚼字
-func Dial(rawUrl string) (*Conn, error) {
+func Dial(rawUrl string, opts ...Option) (*Conn, error) {
 
 	var dial DialOption
 	u, err := url.Parse(rawUrl)
@@ -28,6 +29,9 @@ func Dial(rawUrl string) (*Conn, error) {
 	dial.u = u
 	if dial.Header == nil {
 		dial.Header = make(http.Header)
+	}
+	for _, o := range opts {
+		o.apply(&dial)
 	}
 	return dial.Dial()
 }
@@ -93,6 +97,7 @@ func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error 
 	return nil
 }
 
+// wss已经修改为https
 func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 	if d.u.Scheme == "https" {
 		cfg := &tls.Config{}

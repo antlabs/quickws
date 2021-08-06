@@ -8,12 +8,16 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
+var defaultTimeout = time.Minute * 30
+
 type DialOption struct {
-	Header    http.Header
-	u         *url.URL
-	tlsConfig *tls.Config
+	Header      http.Header
+	u           *url.URL
+	tlsConfig   *tls.Config
+	dialTimeout time.Duration
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
@@ -27,12 +31,14 @@ func Dial(rawUrl string, opts ...Option) (*Conn, error) {
 	}
 
 	dial.u = u
+	dial.dialTimeout = defaultTimeout
 	if dial.Header == nil {
 		dial.Header = make(http.Header)
 	}
 	for _, o := range opts {
 		o.apply(&dial)
 	}
+
 	return dial.Dial()
 }
 
@@ -100,7 +106,20 @@ func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error 
 // wss已经修改为https
 func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 	if d.u.Scheme == "https" {
-		cfg := &tls.Config{}
+		cfg := d.tlsConfig
+		if cfg == nil {
+			cfg = &tls.Config{}
+		} else {
+			cfg = cfg.Clone()
+		}
+
+		if cfg.ServerName == "" {
+			host := d.u.Host
+			if pos := strings.Index(host, ":"); pos != -1 {
+				host = host[:pos]
+			}
+			cfg.ServerName = host
+		}
 		return tls.Client(c, cfg)
 	}
 
@@ -115,12 +134,25 @@ func (d *DialOption) Dial() (*Conn, error) {
 		return nil, err
 	}
 
-	conn, err := net.Dial("tcp", d.u.Host /* TODO 加端号*/)
+	begin := time.Now()
+	conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
 	if err != nil {
 		return nil, err
 	}
 
+	dialDuration := time.Since(begin)
+
 	conn = d.tlsConn(conn)
+
+	if to := d.dialTimeout - dialDuration; to > 0 {
+		conn.SetDeadline(time.Now().Add(to))
+	}
+
+	defer func() {
+		if err != nil {
+			conn.SetDeadline(time.Time{})
+		}
+	}()
 
 	if err := req.Write(conn); err != nil {
 		return nil, err

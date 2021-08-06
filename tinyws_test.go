@@ -1,14 +1,16 @@
 package tinyws
 
-// 本测试代码借鉴gorilla项目, 感谢这些测试思路, 可以更快收敛问题
+// 本测试思路和部分代码(会有说明, 行走江湖, 诚信为本)借鉴gorilla项目, 感谢这些测试思路, 可以更快收敛问题
 import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -16,6 +18,32 @@ import (
 var (
 	globalTestData = []byte("hello world")
 )
+
+func testTcpSocket(quit chan bool, t *testing.T) (addr string) {
+	addr = GetNoPortExists()
+
+	addr = ":" + addr
+	go func() {
+		listener, err := net.Listen("tcp", addr)
+		if err != nil {
+			t.Errorf("%v\n", err)
+			return
+		}
+		defer listener.Close()
+
+		conn, err := listener.Accept()
+		if err != nil {
+			t.Errorf("%v\n", err)
+			return
+		}
+
+		<-quit
+		defer conn.Close()
+	}()
+
+	return addr
+
+}
 
 // 一个echo 测试服务
 func newEchoWebSocketServer(t *testing.T, testData []byte) *httptest.Server {
@@ -57,6 +85,7 @@ func newTLSEchoWebSocketServer(t *testing.T, testData []byte) *httptest.Server {
 	}))
 	s.URL = "wss" + strings.TrimPrefix(s.URL, "https")
 	return s
+	//return &tstServer{ser: s, URL: "wss" + strings.TrimPrefix(s.URL, "https")}
 }
 
 // 写和读
@@ -114,7 +143,6 @@ func rootCAs(t *testing.T, s *httptest.Server) *x509.CertPool {
 func TestDialTLS(t *testing.T) {
 	// 起个mock服务
 	ts := newTLSEchoWebSocketServer(t, globalTestData)
-	fmt.Printf("::::%v\n", ts.URL)
 	// 发起连接
 	c, err := Dial(ts.URL, WithTLSConfig(&tls.Config{RootCAs: rootCAs(t, ts)}))
 	assert.NoError(t, err)
@@ -125,4 +153,16 @@ func TestDialTLS(t *testing.T) {
 
 	// 写和读
 	sendAndRecv(c, t, globalTestData)
+}
+
+// 测试握手时的timeout
+func TestDialTimeout(t *testing.T) {
+	quit := make(chan bool)
+	addr := testTcpSocket(quit, t)
+
+	time.Sleep(time.Second / 100)
+	_, err := Dial("ws://"+addr, WithDialTimeout(time.Second))
+	fmt.Printf("%v\n", err)
+	assert.Error(t, err)
+	close(quit)
 }

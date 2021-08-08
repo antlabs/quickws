@@ -145,12 +145,14 @@ func (d *DialOption) Dial() (*Conn, error) {
 	conn = d.tlsConn(conn)
 
 	if to := d.dialTimeout - dialDuration; to > 0 {
-		conn.SetDeadline(time.Now().Add(to))
+		if err := conn.SetDeadline(time.Now().Add(to)); err != nil {
+			return nil, err
+		}
 	}
 
 	defer func() {
-		if err != nil {
-			conn.SetDeadline(time.Time{})
+		if err == nil {
+			err = conn.SetDeadline(time.Time{})
 		}
 	}()
 

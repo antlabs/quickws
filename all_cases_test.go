@@ -25,6 +25,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("err = ", err)
 			return
 		}
+		//fmt.Printf("%#v\n", c)
 
 		os.Stdout.Write(all)
 		c.WriteTimeout(op, all, 3*time.Second)

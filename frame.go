@@ -138,7 +138,7 @@ func writeHeader(w io.Writer, h frameHeader) (err error) {
 	switch {
 	case h.payloadLen <= 125:
 		head[1] = byte(h.payloadLen)
-	case h.payloadLen <= math.MaxInt16:
+	case h.payloadLen <= math.MaxUint16:
 		head[1] = 126
 		binary.BigEndian.PutUint16(head[2:], uint16(h.payloadLen))
 		have += 2 // 2前

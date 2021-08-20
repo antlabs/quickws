@@ -100,7 +100,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 		h.payloadLen = int64(binary.BigEndian.Uint16(head[:2]))
 		head = head[2:]
 	case 127:
-		h.payloadLen = int64(binary.BigEndian.Uint16(head[:8]))
+		h.payloadLen = int64(binary.BigEndian.Uint64(head[:8]))
 		head = head[8:]
 	}
 

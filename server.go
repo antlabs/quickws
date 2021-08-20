@@ -13,10 +13,16 @@ var strHeaderUpgrade = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r
 
 var strCRLF = "\r\n"
 
-type Upgrader struct {
+type ConnOption struct {
+	config
 }
 
-func Upgrade(w http.ResponseWriter, r *http.Request) (c *Conn, err error) {
+func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *Conn, err error) {
+	var conf ConnOption
+	for _, o := range opts {
+		o.apply(&conf)
+	}
+
 	if ecode, err := checkRequest(r); err != nil {
 		http.Error(w, err.Error(), ecode)
 		return nil, err
@@ -36,7 +42,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request) (c *Conn, err error) {
 		return
 	}
 
-	return newConn(conn, rw, false), nil
+	return newConn(conn, rw, false, conf.config), nil
 }
 
 func writeHeaderKey(w *bufio.Writer, key string) (err error) {

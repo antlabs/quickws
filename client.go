@@ -18,6 +18,7 @@ type DialOption struct {
 	u           *url.URL
 	tlsConfig   *tls.Config
 	dialTimeout time.Duration
+	config
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
@@ -170,5 +171,5 @@ func (d *DialOption) Dial() (*Conn, error) {
 		return nil, err
 	}
 
-	return newConn(conn, brw, true), nil
+	return newConn(conn, brw, true, d.config), nil
 }

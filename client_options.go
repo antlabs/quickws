@@ -42,3 +42,15 @@ func (t timeDuration) apply(o *DialOption) {
 func WithDialTimeout(t time.Duration) Option {
 	return (timeDuration)(t)
 }
+
+type replyPing bool
+
+func (r replyPing) apply(o *DialOption) {
+	o.replyPing = bool(r)
+}
+
+// 配置自动回应ping frame, 当收到ping， 回一个pong
+func WithReplyPing() Option {
+	var b bool
+	return replyPing(b)
+}

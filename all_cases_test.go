@@ -14,7 +14,7 @@ import (
 // echo测试服务
 func echo(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
-	c, err := Upgrade(w, r)
+	c, err := Upgrade(w, r, WithServerReplyPing())
 	if err != nil {
 		fmt.Println("Upgrade fail:", err)
 		return

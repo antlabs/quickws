@@ -14,12 +14,13 @@ type Conn struct {
 	c      net.Conn
 	rw     sync.Mutex
 	client bool
+	config
 }
 
-func newConn(c net.Conn, rw *bufio.ReadWriter, client bool) *Conn {
+func newConn(c net.Conn, rw *bufio.ReadWriter, client bool, conf config) *Conn {
 	rw.Reader.Reset(c)
 
-	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client}
+	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client, config: conf}
 }
 
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
@@ -43,8 +44,19 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		if f.opcode.isControl() {
 			if f.opcode == Close {
 				// 回敬一个close包
-				c.WriteTimeout(Close, f.payload, 2*time.Second)
+				if err := c.WriteTimeout(Close, f.payload, 2*time.Second); err != nil {
+					return nil, f.opcode, err
+				}
+
 				return nil, Close, bytesToCloseErrMsg(f.payload)
+			}
+
+			if f.opcode == Ping {
+				if c.replyPing {
+					if err := c.WriteTimeout(Pong, f.payload, 2*time.Second); err != nil {
+						return nil, f.opcode, err
+					}
+				}
 			}
 		}
 	}

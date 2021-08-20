@@ -61,7 +61,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 	h.fin = head[0]&(1<<7) > 0
 	h.rsv1 = head[0]&(1<<6) > 0
 	h.rsv2 = head[0]&(1<<5) > 0
-	h.rsv2 = head[0]&(1<<4) > 0
+	h.rsv3 = head[0]&(1<<4) > 0
 	h.opcode = Opcode(head[0] & 0xF)
 
 	have := 0

@@ -16,4 +16,5 @@ var (
 
 	ErrOnlyGETSupported    = errors.New("Only get methods are supported")
 	ErrMaxControlFrameSize = errors.New("error:max control frame size > 125")
+	ErrRsv23               = errors.New("error:rsv2 or rsv3 has a value")
 )

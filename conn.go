@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	maxControlFrameSize = 125
+)
+
 type Conn struct {
 	r      *bufio.Reader
 	w      *bufio.Writer
@@ -42,6 +46,13 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		}
 
 		if f.opcode.isControl() {
+			if f.payloadLen > maxControlFrameSize {
+				if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
+					return nil, f.opcode, err
+				}
+				return nil, f.opcode, ErrMaxControlFrameSize
+			}
+
 			if f.opcode == Close {
 				// 回敬一个close包
 				if err := c.WriteTimeout(Close, f.payload, 2*time.Second); err != nil {

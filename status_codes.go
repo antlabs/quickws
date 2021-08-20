@@ -8,7 +8,7 @@ import (
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-7.4.1
 // 这里记录了各种状态码的含义
-type StatusCode int32
+type StatusCode int16
 
 const (
 	// NormalClosure 正常关闭
@@ -90,4 +90,11 @@ func bytesToCloseErrMsg(payload []byte) *CloseErrMsg {
 		ce.Msg = string(payload[3:])
 	}
 	return &ce
+}
+
+func statusCodeToBytes(code StatusCode) (rv []byte) {
+	rv = make([]byte, 2+len(code.String()))
+	binary.BigEndian.PutUint16(rv, uint16(code))
+	copy(rv[2:], code.String())
+	return
 }

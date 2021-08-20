@@ -14,5 +14,6 @@ var (
 
 	ErrHTTPProtocolNotSupported = errors.New("HTTP protocol not supported")
 
-	ErrOnlyGETSupported = errors.New("Only get methods are supported")
+	ErrOnlyGETSupported    = errors.New("Only get methods are supported")
+	ErrMaxControlFrameSize = errors.New("error:max control frame size > 125")
 )

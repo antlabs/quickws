@@ -6,29 +6,40 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"
-	"os"
+	//"os"
 	"testing"
 	"time"
 )
 
+// echo测试服务
 func echo(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
 	c, err := Upgrade(w, r)
 	if err != nil {
 		fmt.Println("Upgrade fail:", err)
 		return
 	}
 
-	defer c.Close()
+	fmt.Printf("new conn:%p ", c)
+	defer func() {
+		c.Close()
+		fmt.Printf("conn bye bye %p:%v\n", c, time.Since(now))
+	}()
+
 	for {
+		now := time.Now()
 		all, op, err := c.ReadTimeout(3 * time.Second)
 		if err != nil {
-			fmt.Println("err = ", err)
+			fmt.Printf("err = %v ", err)
 			return
 		}
-		//fmt.Printf("%#v\n", c)
 
-		os.Stdout.Write(all)
+		fmt.Printf("%p, read:%v ", c, time.Since(now))
+
+		//os.Stdout.Write(all)
+		now = time.Now()
 		c.WriteTimeout(op, all, 3*time.Second)
+		fmt.Printf("%p, write:%v ", c, time.Since(now))
 	}
 }
 

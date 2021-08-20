@@ -1,6 +1,6 @@
 package tinyws
 
-// 本测试思路和部分代码(会有说明, 行走江湖, 诚信为本)借鉴gorilla项目, 感谢这些测试思路, 可以更快收敛问题
+// 本文件有部分测试代码 借鉴gorilla项目, 感谢这些测试思路, 可以更快收敛问题
 import (
 	"crypto/tls"
 	"crypto/x509"

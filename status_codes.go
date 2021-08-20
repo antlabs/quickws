@@ -1,5 +1,11 @@
 package tinyws
 
+import (
+	"encoding/binary"
+	"strconv"
+	"strings"
+)
+
 // https://datatracker.ietf.org/doc/html/rfc6455#section-7.4.1
 // 这里记录了各种状态码的含义
 type StatusCode int32
@@ -24,3 +30,64 @@ const (
 	// ServerTerminating 服务端遇到意外情况, 中止请求
 	ServerTerminating StatusCode = 1011
 )
+
+func (s StatusCode) String() string {
+	switch s {
+	case NormalClosure:
+		return "NormalClosure"
+	case EndpointGoingAway:
+		return "EndpointGoingAway"
+	case ProtocolError:
+		return "ProtocolError"
+	case DataCannotAccept:
+		return "DataCannotAccept"
+	case NotConsistentMessageType:
+		return "NotConsistentMessageType"
+	case TerminatingConnection:
+		return "TerminatingConnection"
+	case TooBigMessage:
+		return "TooBigMessage"
+	case NoExtensions:
+		return "NoExtensions"
+	case ServerTerminating:
+		return "ServerTerminating"
+	}
+
+	return "unkown"
+}
+
+type CloseErrMsg struct {
+	Code StatusCode
+	Msg  string
+}
+
+func (c CloseErrMsg) Error() string {
+	var out strings.Builder
+
+	out.WriteString("<tinyws close: code:")
+
+	out.WriteString(strconv.Itoa(int(c.Code)))
+
+	out.WriteString(" msg:")
+
+	out.WriteString(c.Code.String())
+
+	if len(c.Msg) > 0 {
+		out.WriteString(c.Msg)
+	}
+
+	out.WriteString(">")
+	return out.String()
+}
+
+func bytesToCloseErrMsg(payload []byte) *CloseErrMsg {
+	var ce CloseErrMsg
+	if len(payload) >= 2 {
+		ce.Code = StatusCode(binary.BigEndian.Uint16(payload))
+	}
+
+	if len(payload) >= 3 {
+		ce.Msg = string(payload[3:])
+	}
+	return &ce
+}

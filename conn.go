@@ -24,9 +24,11 @@ func newConn(c net.Conn, rw *bufio.ReadWriter, client bool) *Conn {
 
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
+
 	for {
 		f, err = readFrame(c.r)
 
+		//fmt.Printf("opcode:%s\n", f.opcode)
 		if f.opcode != Continuation && !f.opcode.isControl() {
 			if err == io.EOF {
 				err = nil
@@ -36,6 +38,14 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 		if err != nil {
 			return
+		}
+
+		if f.opcode.isControl() {
+			if f.opcode == Close {
+				// 回敬一个close包
+				c.WriteTimeout(Close, f.payload, 2*time.Second)
+				return nil, Close, bytesToCloseErrMsg(f.payload)
+			}
 		}
 	}
 }

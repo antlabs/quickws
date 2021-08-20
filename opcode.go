@@ -17,6 +17,8 @@ const (
 	Pong
 )
 
+var ErrClose = "websocket"
+
 func (c Opcode) String() string {
 	switch {
 	case c >= 3 && c <= 7:

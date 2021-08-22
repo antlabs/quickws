@@ -33,11 +33,22 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	for {
 		f, err = readFrame(c.r)
 
+		// 检查rsv1 rsv2 rsv3
 		if f.rsv1 || f.rsv2 || f.rsv3 {
 			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
 				return nil, f.opcode, err
 			}
-			return nil, f.opcode, ErrRsv23
+			return nil, f.opcode, ErrRsv123
+		}
+
+		// 检查opcode
+		switch f.opcode {
+		case Text, Binary, Close, Ping, Pong:
+		default:
+			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
+				return nil, f.opcode, err
+			}
+			return nil, f.opcode, ErrOpcode
 		}
 
 		if f.opcode != Continuation && !f.opcode.isControl() {

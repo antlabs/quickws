@@ -2,7 +2,6 @@ package tinyws
 
 import (
 	"bufio"
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -32,6 +31,9 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 	for {
 		f, err = readFrame(c.r)
+		if err != nil {
+			return
+		}
 
 		// 检查rsv1 rsv2 rsv3
 		if f.rsv1 || f.rsv2 || f.rsv3 {
@@ -43,31 +45,24 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 		// 检查opcode
 		switch f.opcode {
-		case Text, Binary, Close, Ping, Pong:
-		default:
-			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
-				return nil, f.opcode, err
-			}
-			return nil, f.opcode, ErrOpcode
-		}
-
-		if f.opcode != Continuation && !f.opcode.isControl() {
-			if err == io.EOF {
-				err = nil
-			}
+		case Text, Binary:
 			return f.payload, f.opcode, err
-		}
-
-		if err != nil {
-			return
-		}
-
-		if f.opcode.isControl() {
+		case Close, Ping, Pong:
+			//  对方发的控制消息太大
 			if f.payloadLen > maxControlFrameSize {
 				if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
 					return nil, f.opcode, err
 				}
 				return nil, f.opcode, ErrMaxControlFrameSize
+			}
+
+			if !f.fin {
+				// 不能分片
+				if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
+					return nil, f.opcode, err
+				}
+
+				return nil, Close, ErrNOTBeFragmented
 			}
 
 			if f.opcode == Close {
@@ -80,13 +75,20 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			}
 
 			if f.opcode == Ping {
+				// 回一个pong包
 				if c.replyPing {
 					if err := c.WriteTimeout(Pong, f.payload, 2*time.Second); err != nil {
 						return nil, f.opcode, err
 					}
 				}
 			}
+		default:
+			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
+				return nil, f.opcode, err
+			}
+			return nil, f.opcode, ErrOpcode
 		}
+
 	}
 }
 

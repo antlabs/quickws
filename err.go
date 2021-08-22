@@ -18,4 +18,5 @@ var (
 	ErrMaxControlFrameSize = errors.New("error:max control frame size > 125")
 	ErrRsv123              = errors.New("error:rsv1 or rsv2 or rsv3 has a value")
 	ErrOpcode              = errors.New("error:wrong opcode")
+	ErrNOTBeFragmented     = errors.New("error:since control message MUST NOT be fragmented")
 )

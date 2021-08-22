@@ -33,7 +33,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	for {
 		f, err = readFrame(c.r)
 
-		if f.rsv2 || f.rsv3 {
+		if f.rsv1 || f.rsv2 || f.rsv3 {
 			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
 				return nil, f.opcode, err
 			}

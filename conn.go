@@ -28,6 +28,7 @@ func newConn(c net.Conn, rw *bufio.ReadWriter, client bool, conf config) *Conn {
 
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
+	var fragmentFrame frame
 
 	for {
 		f, err = readFrame(c.r)
@@ -43,9 +44,30 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			return nil, f.opcode, ErrRsv123
 		}
 
+		if len(fragmentFrame.payload) > 0 && !f.opcode.isControl() {
+			if f.opcode == 0 {
+				fragmentFrame.payload = append(fragmentFrame.payload, f.payload...)
+				if f.fin {
+					return fragmentFrame.payload, fragmentFrame.opcode, nil
+				}
+				continue
+			}
+
+			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
+				return nil, f.opcode, err
+			}
+
+			return nil, f.opcode, ErrFrameOpcode
+		}
+
 		// 检查opcode
 		switch f.opcode {
 		case Text, Binary:
+			if !f.fin {
+				fragmentFrame = f
+				continue
+			}
+
 			return f.payload, f.opcode, err
 		case Close, Ping, Pong:
 			//  对方发的控制消息太大

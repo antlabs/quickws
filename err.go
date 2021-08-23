@@ -19,4 +19,5 @@ var (
 	ErrRsv123              = errors.New("error:rsv1 or rsv2 or rsv3 has a value")
 	ErrOpcode              = errors.New("error:wrong opcode")
 	ErrNOTBeFragmented     = errors.New("error:since control message MUST NOT be fragmented")
+	ErrFrameOpcode         = errors.New("error:since all data frames after the initial data frame must have opcode 0.")
 )

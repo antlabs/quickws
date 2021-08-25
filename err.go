@@ -20,4 +20,5 @@ var (
 	ErrOpcode              = errors.New("error:wrong opcode")
 	ErrNOTBeFragmented     = errors.New("error:since control message MUST NOT be fragmented")
 	ErrFrameOpcode         = errors.New("error:since all data frames after the initial data frame must have opcode 0.")
+	ErrTextNotUTF8         = errors.New("error:text is not utf8 data")
 )

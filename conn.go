@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -26,6 +27,14 @@ func newConn(c net.Conn, rw *bufio.ReadWriter, client bool, conf config) *Conn {
 	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client, config: conf}
 }
 
+func (c *Conn) writeErr(code StatusCode, userErr error) error {
+	if err := c.WriteTimeout(Close, statusCodeToBytes(code), 2*time.Second); err != nil {
+		return err
+	}
+
+	return userErr
+}
+
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
 	var fragmentFrame *frame
@@ -38,31 +47,34 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 		// 检查rsv1 rsv2 rsv3
 		if f.rsv1 || f.rsv2 || f.rsv3 {
-			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
-				return nil, f.opcode, err
-			}
-			return nil, f.opcode, ErrRsv123
+			return nil, f.opcode, c.writeErr(ProtocolError, ErrRsv123)
 		}
 
 		if fragmentFrame != nil && !f.opcode.isControl() {
 			if f.opcode == 0 {
 				fragmentFrame.payload = append(fragmentFrame.payload, f.payload...)
+				// 分段的在这返回
 				if f.fin {
+					if !utf8.Valid(f.payload) {
+						return nil, f.opcode, c.writeErr(DataCannotAccept, ErrTextNotUTF8)
+					}
+
 					return fragmentFrame.payload, fragmentFrame.opcode, nil
 				}
 				continue
 			}
 
-			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
-				return nil, f.opcode, err
-			}
-
-			return nil, f.opcode, ErrFrameOpcode
+			return nil, f.opcode, c.writeErr(ProtocolError, ErrFrameOpcode)
 		}
 
 		// 检查opcode
 		switch f.opcode {
 		case Text, Binary:
+			if f.opcode == Text {
+				if !utf8.Valid(f.payload) {
+					return nil, f.opcode, c.writeErr(DataCannotAccept, ErrTextNotUTF8)
+				}
+			}
 			if !f.fin {
 				f2 := f
 				fragmentFrame = &f2
@@ -73,19 +85,12 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		case Close, Ping, Pong:
 			//  对方发的控制消息太大
 			if f.payloadLen > maxControlFrameSize {
-				if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
-					return nil, f.opcode, err
-				}
-				return nil, f.opcode, ErrMaxControlFrameSize
+				return nil, f.opcode, c.writeErr(ProtocolError, ErrMaxControlFrameSize)
 			}
 
 			if !f.fin {
 				// 不能分片
-				if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
-					return nil, f.opcode, err
-				}
-
-				return nil, Close, ErrNOTBeFragmented
+				return nil, f.opcode, c.writeErr(ProtocolError, ErrNOTBeFragmented)
 			}
 
 			if f.opcode == Close {
@@ -106,10 +111,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 				}
 			}
 		default:
-			if err := c.WriteTimeout(Close, statusCodeToBytes(ProtocolError), 2*time.Second); err != nil {
-				return nil, f.opcode, err
-			}
-			return nil, f.opcode, ErrOpcode
+			return nil, f.opcode, c.writeErr(ProtocolError, ErrOpcode)
 		}
 
 	}

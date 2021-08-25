@@ -15,7 +15,7 @@ var uuid = []byte("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 // StringToBytes 没有内存开销的转换
 func StringToBytes(s string) (b []byte) {
 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh := *(*reflect.StringHeader)(unsafe.Pointer(&s))
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
 	bh.Data = sh.Data
 	bh.Len = sh.Len
 	bh.Cap = sh.Len

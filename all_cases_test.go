@@ -28,7 +28,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		now := time.Now()
-		all, op, err := c.ReadTimeout(3 * time.Second)
+		all, op, err := c.ReadTimeout(2 * time.Second)
 		if err != nil {
 			fmt.Printf("err = %v ", err)
 			return

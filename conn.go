@@ -70,15 +70,16 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		// 检查opcode
 		switch f.opcode {
 		case Text, Binary:
-			if f.opcode == Text {
-				if !utf8.Valid(f.payload) {
-					return nil, f.opcode, c.writeErr(DataCannotAccept, ErrTextNotUTF8)
-				}
-			}
 			if !f.fin {
 				f2 := f
 				fragmentFrame = &f2
 				continue
+			}
+
+			if f.opcode == Text {
+				if !utf8.Valid(f.payload) {
+					return nil, f.opcode, c.writeErr(DataCannotAccept, ErrTextNotUTF8)
+				}
 			}
 
 			return f.payload, f.opcode, err
@@ -94,6 +95,10 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			}
 
 			if f.opcode == Close {
+				if !utf8.Valid(f.payload) {
+					return nil, f.opcode, c.writeErr(ProtocolError, ErrTextNotUTF8)
+				}
+
 				// 回敬一个close包
 				if err := c.WriteTimeout(Close, f.payload, 2*time.Second); err != nil {
 					return nil, f.opcode, err

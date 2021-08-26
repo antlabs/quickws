@@ -79,7 +79,8 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 			if f.opcode == Text {
 				if !utf8.Valid(f.payload) {
-					return nil, f.opcode, c.writeErr(DataCannotAccept, ErrTextNotUTF8)
+					c.c.Close()
+					return nil, f.opcode, ErrTextNotUTF8
 				}
 			}
 

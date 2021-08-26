@@ -2,6 +2,7 @@ package tinyws
 
 import (
 	"bufio"
+	"encoding/binary"
 	"net"
 	"sync"
 	"time"
@@ -95,8 +96,21 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			}
 
 			if f.opcode == Close {
-				if !utf8.Valid(f.payload) {
+				if len(f.payload) == 0 {
+					return nil, f.opcode, c.writeErr(NormalClosure, ErrClosePayloadTooSmall)
+				}
+
+				if len(f.payload) < 2 {
+					return nil, f.opcode, c.writeErr(ProtocolError, ErrClosePayloadTooSmall)
+				}
+
+				if !utf8.Valid(f.payload[2:]) {
 					return nil, f.opcode, c.writeErr(ProtocolError, ErrTextNotUTF8)
+				}
+
+				code := binary.BigEndian.Uint16(f.payload)
+				if !validCode(code) {
+					return nil, f.opcode, c.writeErr(ProtocolError, ErrCloseValue)
 				}
 
 				// 回敬一个close包

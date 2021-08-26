@@ -14,11 +14,14 @@ var (
 
 	ErrHTTPProtocolNotSupported = errors.New("HTTP protocol not supported")
 
-	ErrOnlyGETSupported    = errors.New("error:Only get methods are supported")
-	ErrMaxControlFrameSize = errors.New("error:max control frame size > 125")
-	ErrRsv123              = errors.New("error:rsv1 or rsv2 or rsv3 has a value")
-	ErrOpcode              = errors.New("error:wrong opcode")
-	ErrNOTBeFragmented     = errors.New("error:since control message MUST NOT be fragmented")
-	ErrFrameOpcode         = errors.New("error:since all data frames after the initial data frame must have opcode 0.")
-	ErrTextNotUTF8         = errors.New("error:text is not utf8 data")
+	ErrOnlyGETSupported     = errors.New("error:Only get methods are supported")
+	ErrMaxControlFrameSize  = errors.New("error:max control frame size > 125")
+	ErrRsv123               = errors.New("error:rsv1 or rsv2 or rsv3 has a value")
+	ErrOpcode               = errors.New("error:wrong opcode")
+	ErrNOTBeFragmented      = errors.New("error:since control message MUST NOT be fragmented")
+	ErrFrameOpcode          = errors.New("error:since all data frames after the initial data frame must have opcode 0.")
+	ErrTextNotUTF8          = errors.New("error:text is not utf8 data")
+	ErrClosePayloadTooSmall = errors.New("error:close payload too small")
+	ErrCloseValue           = errors.New("error:close value is wrong") //close值不对
+	ErrEmptyClose           = errors.New("error:close value is empty") //close的值是空的
 )

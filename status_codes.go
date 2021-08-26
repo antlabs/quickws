@@ -98,3 +98,20 @@ func statusCodeToBytes(code StatusCode) (rv []byte) {
 	copy(rv[2:], code.String())
 	return
 }
+
+func validCode(code uint16) bool {
+	switch code {
+	case 1004, 1005, 1006, 1015:
+		return false
+	}
+
+	if code >= 1000 && code <= 1015 {
+		return true
+	}
+
+	if code >= 3000 && code <= 4999 {
+		return true
+	}
+
+	return false
+}

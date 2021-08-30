@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -52,6 +53,20 @@ func (c *Conn) writeErr(code StatusCode, userErr error) error {
 	return userErr
 }
 
+func (c *Conn) failRsv1(op Opcode) bool {
+	// 压缩没有开启
+	if !c.compression {
+		return true
+	}
+
+	// 不是text和binary
+	if op != Text && op != Binary {
+		return true
+	}
+
+	return false
+}
+
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
 	var fragmentFrame *frame
@@ -62,9 +77,14 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			return
 		}
 
+		op = f.opcode
+		if fragmentFrame != nil {
+			op = fragmentFrame.opcode
+		}
+
 		// 检查rsv1 rsv2 rsv3
-		if f.rsv1 && !c.compression || f.rsv2 || f.rsv3 {
-			return nil, f.opcode, c.writeErr(ProtocolError, ErrRsv123)
+		if f.rsv1 && c.failRsv1(op) || f.rsv2 || f.rsv3 {
+			return nil, f.opcode, c.writeErr(ProtocolError, fmt.Errorf("%w:rsv1(%t) rsv2(%t) rsv2(%t)", ErrRsv123, f.rsv1, f.rsv2, f.rsv3))
 		}
 
 		if fragmentFrame != nil && !f.opcode.isControl() {
@@ -93,14 +113,15 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 				continue
 			}
 
+			if f.rsv1 && c.compression {
+				r := bytes.NewReader(f.payload)
+				r2 := decompressNoContextTakeover(r)
+				var o bytes.Buffer
+				io.Copy(&o, r2)
+				f.payload = o.Bytes()
+			}
+
 			if f.opcode == Text {
-				if c.compression {
-					r := bytes.NewReader(f.payload)
-					r2 := decompressNoContextTakeover(r)
-					var o bytes.Buffer
-					io.Copy(&o, r2)
-					f.payload = o.Bytes()
-				}
 
 				if !utf8.Valid(f.payload) {
 					c.c.Close()

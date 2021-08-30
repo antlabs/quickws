@@ -1,8 +1,24 @@
+// Copyright 2021 guonaihong. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tinyws
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -47,7 +63,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		}
 
 		// 检查rsv1 rsv2 rsv3
-		if f.rsv1 || f.rsv2 || f.rsv3 {
+		if f.rsv1 && !c.compression || f.rsv2 || f.rsv3 {
 			return nil, f.opcode, c.writeErr(ProtocolError, ErrRsv123)
 		}
 
@@ -78,6 +94,14 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			}
 
 			if f.opcode == Text {
+				if c.compression {
+					r := bytes.NewReader(f.payload)
+					r2 := decompressNoContextTakeover(r)
+					var o bytes.Buffer
+					io.Copy(&o, r2)
+					f.payload = o.Bytes()
+				}
+
 				if !utf8.Valid(f.payload) {
 					c.c.Close()
 					return nil, f.opcode, ErrTextNotUTF8
@@ -90,9 +114,9 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			if f.payloadLen > maxControlFrameSize {
 				return nil, f.opcode, c.writeErr(ProtocolError, ErrMaxControlFrameSize)
 			}
-
+			// Close, Ping, Pong 不能分片
 			if !f.fin {
-				// 不能分片
+
 				return nil, f.opcode, c.writeErr(ProtocolError, ErrNOTBeFragmented)
 			}
 

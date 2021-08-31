@@ -29,13 +29,13 @@ func WithServerReplyPing() ServerOption {
 	return serverReplyPing(true)
 }
 
-type compression bool
+type compressionServer bool
 
-func (c2 compression) apply(c *ConnOption) {
+func (c2 compressionServer) apply(c *ConnOption) {
 	c.compression = bool(c2)
 }
 
 // 配置压缩
-func WithCompression() ServerOption {
-	return compression(true)
+func WithServerCompression() ServerOption {
+	return compressionServer(true)
 }

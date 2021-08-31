@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/http"
 	"reflect"
 	"unsafe"
 )
@@ -68,4 +69,16 @@ func GetNoPortExists() string {
 	}
 
 	return "0"
+}
+
+// 是否打开压缩
+func needCompression(header http.Header) bool {
+	for _, ext := range parseExtensions(header) {
+		if ext[""] != "permessage-deflate" {
+			continue
+		}
+		return true
+	}
+
+	return false
 }

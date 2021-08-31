@@ -24,6 +24,7 @@ import (
 
 var ErrNotFoundHijacker = errors.New("not found Hijacker")
 var strHeaderUpgrade = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+var strHeaderExtensions = "Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n"
 
 var strCRLF = "\r\n"
 
@@ -52,7 +53,13 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *C
 		return nil, err
 	}
 
-	if err = writeResponse(r, rw.Writer); err != nil {
+	// 是否打开压缩
+	// 外层接收压缩, 并且客户端发送扩展过来
+	if conf.compression {
+		conf.compression = needCompression(r.Header)
+	}
+
+	if err = writeResponse(r, rw.Writer, conf.config); err != nil {
 		return
 	}
 
@@ -82,7 +89,7 @@ func writeHeaderVal(w *bufio.Writer, val string) (err error) {
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
-func writeResponse(r *http.Request, w *bufio.Writer) (err error) {
+func writeResponse(r *http.Request, w *bufio.Writer, cnf config) (err error) {
 	if _, err = w.WriteString(strHeaderUpgrade); err != nil {
 		return
 	}
@@ -94,6 +101,13 @@ func writeResponse(r *http.Request, w *bufio.Writer) (err error) {
 	//写入Sec-WebSocket-Accept vla
 	if err = writeHeaderVal(w, secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))); err != nil {
 		return
+	}
+	//给客户端回个信, 表示支持压缩模式
+	if cnf.compression {
+		if _, err = w.WriteString(strHeaderExtensions); err != nil {
+			return
+		}
+
 	}
 
 	if _, err = w.WriteString(strCRLF); err != nil {

@@ -90,12 +90,13 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		if fragmentFrame != nil && !f.opcode.isControl() {
 			if f.opcode == 0 {
 				fragmentFrame.payload = append(fragmentFrame.payload, f.payload...)
+				if fragmentFrame.opcode == Text && !utf8.Valid(fragmentFrame.payload) {
+					c.c.Close()
+					return nil, f.opcode, ErrTextNotUTF8
+				}
+
 				// 分段的在这返回
 				if f.fin {
-					if !utf8.Valid(f.payload) {
-						return nil, f.opcode, c.writeErr(DataCannotAccept, ErrTextNotUTF8)
-					}
-
 					return fragmentFrame.payload, fragmentFrame.opcode, nil
 				}
 				continue

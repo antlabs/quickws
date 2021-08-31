@@ -16,7 +16,7 @@ import (
 // echo测试服务
 func echo(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
-	c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing(), tinyws.WithCompression())
+	c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing(), tinyws.WithServerCompression())
 	if err != nil {
 		fmt.Println("Upgrade fail:", err)
 		return

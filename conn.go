@@ -90,13 +90,15 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		if fragmentFrame != nil && !f.opcode.isControl() {
 			if f.opcode == 0 {
 				fragmentFrame.payload = append(fragmentFrame.payload, f.payload...)
-				if fragmentFrame.opcode == Text && !utf8.Valid(fragmentFrame.payload) {
-					c.c.Close()
-					return nil, f.opcode, ErrTextNotUTF8
-				}
 
 				// 分段的在这返回
 				if f.fin {
+					// 这里的check按道理应该放到f.fin前面， 会更符合rfc的标准, 前提是utf8.Valid修改成流式解析
+					// TODO utf8.Valid 修改成流式解析
+					if fragmentFrame.opcode == Text && !utf8.Valid(fragmentFrame.payload) {
+						c.c.Close()
+						return nil, f.opcode, ErrTextNotUTF8
+					}
 					return fragmentFrame.payload, fragmentFrame.opcode, nil
 				}
 				continue

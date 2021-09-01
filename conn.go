@@ -67,6 +67,16 @@ func (c *Conn) failRsv1(op Opcode) bool {
 	return false
 }
 
+func decode(payload []byte) ([]byte, error) {
+	r := bytes.NewReader(payload)
+	r2 := decompressNoContextTakeover(r)
+	var o bytes.Buffer
+	if _, err := io.Copy(&o, r2); err != nil {
+		return nil, err
+	}
+	return o.Bytes(), nil
+}
+
 func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 	var f frame
 	var fragmentFrame *frame
@@ -99,6 +109,11 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 						c.c.Close()
 						return nil, f.opcode, ErrTextNotUTF8
 					}
+
+					fragmentFrame.payload, err = decode(fragmentFrame.payload)
+					if err != nil {
+						return
+					}
 					return fragmentFrame.payload, fragmentFrame.opcode, nil
 				}
 				continue
@@ -117,11 +132,10 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			}
 
 			if f.rsv1 && c.compression {
-				r := bytes.NewReader(f.payload)
-				r2 := decompressNoContextTakeover(r)
-				var o bytes.Buffer
-				io.Copy(&o, r2)
-				f.payload = o.Bytes()
+				f.payload, err = decode(f.payload)
+				if err != nil {
+					return
+				}
 			}
 
 			if f.opcode == Text {

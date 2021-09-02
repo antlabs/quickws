@@ -1,14 +1,16 @@
 ## 简介
-tinyws是一个极简的websocket库, 总代码量控制在1k行以下.
+tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 
 ## 特性
-* 简单, 简单, 简单, 总代码量不足1k行, 能有什么复杂性.
+* 3倍的简单
+* 实现rfc6455
+* 实现rfc7692
 
 ## 例子
 ### 客户端连服务端
 ```go
 func main() {
-    c, err := Dial("ws://127.0.0.1:8080/test")
+    c, err := tinyws.Dial("ws://127.0.0.1:8080/test")
 	if err != nil {
 		fmt.Printf("err = %v\n", err)
 		return
@@ -35,7 +37,7 @@ func main() {
 ```go
 func main() {
     h1 := func(w http.ResponseWriter, r *http.Request) {
-		c, err := Upgrade(w, r)
+		c, err := tinyws.Upgrade(w, r)
 		if err != nil {
 			fmt.Println("Upgrade fail:", err)
 			return

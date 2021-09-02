@@ -15,6 +15,6 @@
 package tinyws
 
 type config struct {
-	replyPing   bool //开启自动回复
-	compression bool //开启压缩功能
+	replyPing     bool //开启自动回复
+	decompression bool //开启解压缩功能
 }

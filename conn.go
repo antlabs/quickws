@@ -55,7 +55,7 @@ func (c *Conn) writeErr(code StatusCode, userErr error) error {
 
 func (c *Conn) failRsv1(op Opcode) bool {
 	// 压缩没有开启
-	if !c.compression {
+	if !c.decompression {
 		return true
 	}
 
@@ -105,7 +105,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 				// 分段的在这返回
 				if f.fin {
 					//解压缩
-					if fragmentFrame.rsv1 && c.compression {
+					if fragmentFrame.rsv1 && c.decompression {
 						fragmentFrame.payload, err = decode(fragmentFrame.payload)
 						if err != nil {
 							return
@@ -135,7 +135,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 				continue
 			}
 
-			if f.rsv1 && c.compression {
+			if f.rsv1 && c.decompression {
 				f.payload, err = decode(f.payload)
 				if err != nil {
 					return

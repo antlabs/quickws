@@ -72,7 +72,7 @@ func GetNoPortExists() string {
 }
 
 // 是否打开压缩
-func needCompression(header http.Header) bool {
+func needDecompression(header http.Header) bool {
 	for _, ext := range parseExtensions(header) {
 		if ext[""] != "permessage-deflate" {
 			continue

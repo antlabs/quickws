@@ -68,13 +68,13 @@ func WithReplyPing() Option {
 	return replyPing(true)
 }
 
-type compression bool
+type decompression bool
 
-func (c2 compression) apply(o *DialOption) {
-	o.compression = bool(c2)
+func (c2 decompression) apply(o *DialOption) {
+	o.decompression = bool(c2)
 }
 
-// 配置压缩
+// 配置解压缩
 func WithCompression() Option {
-	return compression(true)
+	return decompression(true)
 }

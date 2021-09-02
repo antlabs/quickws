@@ -53,10 +53,10 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *C
 		return nil, err
 	}
 
-	// 是否打开压缩
+	// 是否打开解压缩
 	// 外层接收压缩, 并且客户端发送扩展过来
-	if conf.compression {
-		conf.compression = needCompression(r.Header)
+	if conf.decompression {
+		conf.decompression = needDecompression(r.Header)
 	}
 
 	if err = writeResponse(r, rw.Writer, conf.config); err != nil {
@@ -102,8 +102,8 @@ func writeResponse(r *http.Request, w *bufio.Writer, cnf config) (err error) {
 	if err = writeHeaderVal(w, secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))); err != nil {
 		return
 	}
-	//给客户端回个信, 表示支持压缩模式
-	if cnf.compression {
+	//给客户端回个信, 表示支持解压缩模式
+	if cnf.decompression {
 		if _, err = w.WriteString(strHeaderExtensions); err != nil {
 			return
 		}

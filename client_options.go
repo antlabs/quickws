@@ -75,6 +75,17 @@ func (c2 decompression) apply(o *DialOption) {
 }
 
 // 配置解压缩
-func WithCompression() Option {
+func WithDecompression() Option {
 	return decompression(true)
+}
+
+type compression bool
+
+func (c2 compression) apply(o *DialOption) {
+	o.compression = bool(c2)
+}
+
+// 配置压缩
+func WithCompression() Option {
+	return compression(true)
 }

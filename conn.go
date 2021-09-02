@@ -54,7 +54,7 @@ func (c *Conn) writeErr(code StatusCode, userErr error) error {
 }
 
 func (c *Conn) failRsv1(op Opcode) bool {
-	// 压缩没有开启
+	// 解压缩没有开启
 	if !c.decompression {
 		return true
 	}
@@ -216,6 +216,14 @@ func (c *Conn) ReadTimeout(t time.Duration) (all []byte, op Opcode, err error) {
 	return c.readLoop()
 }
 
+type wrapBuffer struct {
+	bytes.Buffer
+}
+
+func (w *wrapBuffer) Close() error {
+	return nil
+}
+
 func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 	var f frame
 	// 这里可以用sync.Pool优化下
@@ -223,6 +231,20 @@ func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 	copy(writeBuf, data)
 
 	f.fin = true
+	f.rsv1 = c.compression && (op == Text || op == Binary)
+	if f.rsv1 {
+		var out wrapBuffer
+		w := compressNoContextTakeover(&out, defaultCompressionLevel)
+		if _, err = io.Copy(w, bytes.NewReader(data)); err != nil {
+			return
+		}
+
+		if err = w.Close(); err != nil {
+			return
+		}
+		data = out.Bytes()
+	}
+
 	f.opcode = op
 	f.payload = writeBuf
 	f.payloadLen = int64(len(data))

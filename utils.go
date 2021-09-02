@@ -71,13 +71,27 @@ func GetNoPortExists() string {
 	return "0"
 }
 
-// 是否打开压缩
+// 是否打开解压缩
 func needDecompression(header http.Header) bool {
 	for _, ext := range parseExtensions(header) {
 		if ext[""] != "permessage-deflate" {
 			continue
 		}
 		return true
+	}
+
+	return false
+}
+
+// 客户端用的函数
+func maybeCompressionDecompression(header http.Header) bool {
+	for _, ext := range parseExtensions(header) {
+		if ext[""] != "permessage-deflate" {
+			continue
+		}
+		_, s := ext["server_no_context_takeover"]
+		_, c := ext["client_no_context_takeover"]
+		return s && c
 	}
 
 	return false

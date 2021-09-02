@@ -181,6 +181,14 @@ func (d *DialOption) Dial() (*Conn, error) {
 		return nil, err
 	}
 
+	cd := maybeCompressionDecompression(rsp.Header)
+	if d.decompression {
+		d.decompression = cd
+	}
+	if d.compression {
+		d.compression = cd
+	}
+
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {
 		return nil, err
 	}

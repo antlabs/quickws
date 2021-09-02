@@ -22,11 +22,12 @@ import (
 	"strings"
 )
 
-var ErrNotFoundHijacker = errors.New("not found Hijacker")
-var strHeaderUpgrade = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-var strHeaderExtensions = "Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n"
-
-var strCRLF = "\r\n"
+var (
+	ErrNotFoundHijacker = errors.New("not found Hijacker")
+	strHeaderUpgrade    = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+	strHeaderExtensions = "Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n"
+	strCRLF             = "\r\n"
+)
 
 type ConnOption struct {
 	config

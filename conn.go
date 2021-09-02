@@ -74,6 +74,7 @@ func decode(payload []byte) ([]byte, error) {
 	if _, err := io.Copy(&o, r2); err != nil {
 		return nil, err
 	}
+	r2.Close()
 	return o.Bytes(), nil
 }
 
@@ -103,6 +104,13 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 				// 分段的在这返回
 				if f.fin {
+					//解压缩
+					if fragmentFrame.rsv1 && c.compression {
+						fragmentFrame.payload, err = decode(fragmentFrame.payload)
+						if err != nil {
+							return
+						}
+					}
 					// 这里的check按道理应该放到f.fin前面， 会更符合rfc的标准, 前提是utf8.Valid修改成流式解析
 					// TODO utf8.Valid 修改成流式解析
 					if fragmentFrame.opcode == Text && !utf8.Valid(fragmentFrame.payload) {
@@ -110,10 +118,6 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 						return nil, f.opcode, ErrTextNotUTF8
 					}
 
-					fragmentFrame.payload, err = decode(fragmentFrame.payload)
-					if err != nil {
-						return
-					}
 					return fragmentFrame.payload, fragmentFrame.opcode, nil
 				}
 				continue

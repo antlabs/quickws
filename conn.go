@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -34,7 +33,6 @@ type Conn struct {
 	r      *bufio.Reader
 	w      *bufio.Writer
 	c      net.Conn
-	rw     sync.Mutex
 	client bool
 	config
 }

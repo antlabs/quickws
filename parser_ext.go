@@ -8,7 +8,6 @@ package tinyws
 import (
 	"net/http"
 	"strings"
-	"unicode/utf8"
 )
 
 // Token octets per RFC 2616.
@@ -151,57 +150,6 @@ func nextTokenOrQuoted(s string) (value string, rest string) {
 		}
 	}
 	return "", ""
-}
-
-// equalASCIIFold returns true if s is equal to t with ASCII case folding as
-// defined in RFC 4790.
-func equalASCIIFold(s, t string) bool {
-	for s != "" && t != "" {
-		sr, size := utf8.DecodeRuneInString(s)
-		s = s[size:]
-		tr, size := utf8.DecodeRuneInString(t)
-		t = t[size:]
-		if sr == tr {
-			continue
-		}
-		if 'A' <= sr && sr <= 'Z' {
-			sr = sr + 'a' - 'A'
-		}
-		if 'A' <= tr && tr <= 'Z' {
-			tr = tr + 'a' - 'A'
-		}
-		if sr != tr {
-			return false
-		}
-	}
-	return s == t
-}
-
-// tokenListContainsValue returns true if the 1#token header with the given
-// name contains a token equal to value with ASCII case folding.
-func tokenListContainsValue(header http.Header, name string, value string) bool {
-headers:
-	for _, s := range header[name] {
-		for {
-			var t string
-			t, s = nextToken(skipSpace(s))
-			if t == "" {
-				continue headers
-			}
-			s = skipSpace(s)
-			if s != "" && s[0] != ',' {
-				continue headers
-			}
-			if equalASCIIFold(t, value) {
-				return true
-			}
-			if s == "" {
-				continue headers
-			}
-			s = s[1:]
-		}
-	}
-	return false
 }
 
 // parseExtensions parses WebSocket extensions from a header.

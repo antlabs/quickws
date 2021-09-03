@@ -28,7 +28,8 @@ func newServerCompression(t *testing.T, data []byte) *httptest.Server {
 
 		assert.Equal(t, all, data)
 
-		c.WriteTimeout(op, all, 3*time.Second)
+		err = c.WriteTimeout(op, all, 3*time.Second)
+		assert.NoError(t, err)
 	}))
 
 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")

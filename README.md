@@ -2,7 +2,7 @@
 tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 
 ![Go](https://github.com/guonaihong/tinyws/workflows/Go/badge.svg)
-[![codecov](https://codecov.io/gh/guonaihong/tinyws/branch/master/graph/badge.svg)](https://codecov.io/gh/guonaihong/tinyws)
+[![codecov](https://codecov.io/gh/guonaihong/tinyws/branch/main/graph/badge.svg)](https://codecov.io/gh/guonaihong/tinyws)
 [![Go Report Card](https://goreportcard.com/badge/github.com/guonaihong/tinyws)](https://goreportcard.com/report/github.com/guonaihong/tinyws)
 
 ## 特性

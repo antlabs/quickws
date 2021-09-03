@@ -242,12 +242,12 @@ func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 		if err = w.Close(); err != nil {
 			return
 		}
-		data = out.Bytes()
+		writeBuf = out.Bytes()
 	}
 
 	f.opcode = op
 	f.payload = writeBuf
-	f.payloadLen = int64(len(data))
+	f.payloadLen = int64(len(writeBuf))
 	if c.client {
 		f.mask = true
 		newMask(f.maskValue[:])

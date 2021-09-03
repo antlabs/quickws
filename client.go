@@ -25,7 +25,10 @@ import (
 	"time"
 )
 
-var defaultTimeout = time.Minute * 30
+var (
+	defaultTimeout = time.Minute * 30
+	strExtensions  = "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
+)
 
 type DialOption struct {
 	Header      http.Header
@@ -85,6 +88,11 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	// TODO 第8点
 	// 第9点
 	d.Header.Add("Sec-WebSocket-Version", "13")
+
+	if d.decompression && d.compression {
+		d.Header.Add("Sec-WebSocket-Extensions", strExtensions)
+	}
+
 	req.Header = d.Header
 	return req, secWebSocket, nil
 
@@ -143,7 +151,6 @@ func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 
 func (d *DialOption) Dial() (*Conn, error) {
 
-	//检查响应值的合法性
 	req, secWebSocket, err := d.handshake()
 	if err != nil {
 		return nil, err

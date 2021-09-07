@@ -37,9 +37,11 @@ func decompressNoContextTakeover(r io.Reader) io.ReadCloser {
 	return &flateReadWrapper{fr}
 }
 
+/*
 func isValidCompressionLevel(level int) bool {
 	return minCompressionLevel <= level && level <= maxCompressionLevel
 }
+*/
 
 func compressNoContextTakeover(w io.WriteCloser, level int) io.WriteCloser {
 	p := &flateWriterPools[level-minCompressionLevel]

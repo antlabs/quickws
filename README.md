@@ -10,7 +10,24 @@ tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 * 实现rfc6455
 * 实现rfc7692
 
-## 例子
+## 内容
+* [安装](#Installation)
+* [例子](#example)
+	* [客户端连服务端](#客户端连服务端)
+	* [服务端接受客户端请求](#服务端接受客户端请求)
+* [配置函数](#配置函数)
+	* [客户端配置参数](#客户端配置)
+		* [配置header](#配置header)
+		* [配置握手时的超时时间](#配置握手时的超时时间)
+		* [配置自动回复ping消息](#配置自动回复ping消息)
+	* [服务配置参数](#服务端配置)
+		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
+## Installation
+```console
+go get github.com/guonaihong/tinyws
+```
+
+## example
 ### 客户端连服务端
 ```go
 package main
@@ -88,4 +105,40 @@ func main() {
 
 }
 
+```
+
+## 配置函数
+### 客户端配置参数
+#### 配置header
+```go
+func main() {
+	tinyws.Dial("ws://127.0.0.1:12345/test", tinyws.WithHTTPHeader(http.Header{
+		"h1": "v1",
+		"h2":"v2", 
+	}))
+}
+```
+#### 配置握手时的超时时间
+```go
+func main() {
+	tinyws.Dial("ws://127.0.0.1:12345/test", tinyws.WithDialTimeout(2 * time.Second))
+}
+```
+
+#### 配置自动回复ping消息
+```go
+func main() {
+	tinyws.Dial("ws://127.0.0.1:12345/test", tinyws.WithReplyPing())
+}
+```
+### 服务端配置参数
+#### 配置服务自动回复ping消息
+```go
+func main() {
+	  c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing())
+        if err != nil {
+                fmt.Println("Upgrade fail:", err)
+                return
+        }   
+}
 ```

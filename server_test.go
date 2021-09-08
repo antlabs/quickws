@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newServerCompression(t *testing.T, data []byte) *httptest.Server {
+func newServerDecompressAndCompression(t *testing.T, data []byte) *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := Upgrade(w, r, WithServerDecompression())
+		c, err := Upgrade(w, r, WithServerDecompressAndCompress())
 		assert.NoError(t, err)
 		if err != nil {
 			return
@@ -36,34 +36,9 @@ func newServerCompression(t *testing.T, data []byte) *httptest.Server {
 	return ts
 }
 
-// 测试压缩和解压缩 1.
-func Test_Client_Compression(t *testing.T) {
+func Test_Server_Compression(t *testing.T) {
 	data := []byte("test data")
-	ts := newServerCompression(t, data)
-	c, err := Dial(ts.URL, WithDecompression(), WithCompression())
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
-	defer c.Close()
-
-	err = c.WriteTimeout(Text, data, 3*time.Second)
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
-	all, _, err := c.ReadTimeout(3 * time.Second)
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
-	assert.Equal(t, data, all)
-}
-
-// 测试压缩和解压缩 2.
-func Test_Client_Compression2(t *testing.T) {
-	data := []byte("test data")
-	ts := newServerCompression(t, data)
+	ts := newServerDecompressAndCompression(t, data)
 	c, err := Dial(ts.URL, WithDecompressAndCompress())
 	assert.NoError(t, err)
 	if err != nil {

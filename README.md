@@ -135,7 +135,7 @@ func main() {
 #### 配置服务自动回复ping消息
 ```go
 func main() {
-	  c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing())
+	c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing())
         if err != nil {
                 fmt.Println("Upgrade fail:", err)
                 return

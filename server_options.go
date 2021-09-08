@@ -39,3 +39,15 @@ func (c2 decompressionServer) apply(c *ConnOption) {
 func WithServerDecompression() ServerOption {
 	return decompressionServer(true)
 }
+
+type decompressAndCompressServer bool
+
+func (dc decompressAndCompressServer) apply(c *ConnOption) {
+	c.compression = bool(dc)
+	c.decompression = bool(dc)
+}
+
+// 配置压缩和解压缩
+func WithServerDecompressAndCompress() ServerOption {
+	return decompressAndCompressServer(true)
+}

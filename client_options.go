@@ -89,3 +89,15 @@ func (c2 compression) apply(o *DialOption) {
 func WithCompression() Option {
 	return compression(true)
 }
+
+type decompressAndCompress bool
+
+func (dc decompressAndCompress) apply(o *DialOption) {
+	o.compression = bool(dc)
+	o.decompression = bool(dc)
+}
+
+// 配置压缩和解压缩
+func WithDecompressAndCompress() Option {
+	return decompressAndCompress(true)
+}

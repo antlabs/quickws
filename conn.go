@@ -192,8 +192,12 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 					if err := c.WriteTimeout(Pong, f.payload, 2*time.Second); err != nil {
 						return nil, f.opcode, err
 					}
+					continue
 				}
+
+				return nil, f.opcode, nil
 			}
+			return nil, f.opcode, nil
 		default:
 			return nil, f.opcode, c.writeErr(ProtocolError, ErrOpcode)
 		}

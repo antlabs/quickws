@@ -195,8 +195,12 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 					continue
 				}
 
-				return nil, f.opcode, nil
 			}
+
+			if f.opcode == Pong && c.ignorePong {
+				continue
+			}
+
 			return nil, f.opcode, nil
 		default:
 			return nil, f.opcode, c.writeErr(ProtocolError, ErrOpcode)

@@ -51,3 +51,14 @@ func (dc decompressAndCompressServer) apply(c *ConnOption) {
 func WithServerDecompressAndCompress() ServerOption {
 	return decompressAndCompressServer(true)
 }
+
+type ignorePongServer bool
+
+func (i ignorePongServer) apply(c *ConnOption) {
+	c.ignorePong = bool(i)
+}
+
+// 配置忽略pong消息
+func WithServerIgnorePong() ServerOption {
+	return ignorePongServer(true)
+}

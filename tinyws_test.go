@@ -1,6 +1,6 @@
 package tinyws
 
-// 本文件有部分测试代码 借鉴gorilla项目, 感谢这些测试思路, 可以更快收敛问题
+// 这个文件没有版权约束
 import (
 	"crypto/tls"
 	"crypto/x509"

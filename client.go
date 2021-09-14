@@ -149,7 +149,7 @@ func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 	return c
 }
 
-func (d *DialOption) Dial() (*Conn, error) {
+func (d *DialOption) Dial() (c *Conn, err error) {
 
 	req, secWebSocket, err := d.handshake()
 	if err != nil {
@@ -165,10 +165,16 @@ func (d *DialOption) Dial() (*Conn, error) {
 	dialDuration := time.Since(begin)
 
 	conn = d.tlsConn(conn)
+	defer func() {
+		if err != nil && conn != nil {
+			conn.Close()
+			conn = nil
+		}
+	}()
 
 	if to := d.dialTimeout - dialDuration; to > 0 {
-		if err := conn.SetDeadline(time.Now().Add(to)); err != nil {
-			return nil, err
+		if err = conn.SetDeadline(time.Now().Add(to)); err != nil {
+			return
 		}
 	}
 
@@ -178,8 +184,8 @@ func (d *DialOption) Dial() (*Conn, error) {
 		}
 	}()
 
-	if err := req.Write(conn); err != nil {
-		return nil, err
+	if err = req.Write(conn); err != nil {
+		return
 	}
 
 	brw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
@@ -197,7 +203,7 @@ func (d *DialOption) Dial() (*Conn, error) {
 	}
 
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {
-		return nil, err
+		return
 	}
 
 	return newConn(conn, brw, true, d.config), nil

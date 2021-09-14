@@ -104,7 +104,8 @@ func newServerPingReply(t *testing.T, data []byte) *httptest.Server {
 
 		defer c.Close()
 
-		c.ReadTimeout(time.Second / 5)
+		_, _, err = c.ReadTimeout(time.Second / 5)
+		assert.NoError(t, err)
 	}))
 
 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")

@@ -1,6 +1,7 @@
 package tinyws
 
 import (
+	"encoding/binary"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -104,8 +105,9 @@ func newServerPingReply(t *testing.T, data []byte) *httptest.Server {
 
 		defer c.Close()
 
-		_, _, err = c.ReadTimeout(time.Second / 5)
-		assert.NoError(t, err)
+		_, op, err := c.ReadTimeout(time.Second / 5)
+		assert.Equal(t, op, Close)
+		assert.Error(t, err)
 	}))
 
 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
@@ -175,6 +177,7 @@ func Test_Client_Ping(t *testing.T) {
 		for _, ts := range tsSlice {
 			ts.Close()
 		}
+		time.Sleep(time.Second / 100)
 	}()
 
 	for _, ts := range tsSlice {
@@ -199,6 +202,11 @@ func Test_Client_Ping(t *testing.T) {
 			return
 		}
 
+		data := make([]byte, 5)
+		binary.BigEndian.PutUint16(data, 1000)
+		copy(data[2:], "bye")
+
+		c.WriteMessage(Close, data)
 		// 检查下是否是Pong
 		assert.Equal(t, op, Pong)
 	}

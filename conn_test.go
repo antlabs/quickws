@@ -67,21 +67,21 @@ func createConnTestEcho(t *testing.T, data []byte, ctrl echoCtrl) *httptest.Serv
 
 // 测试rsv1 rsv2 rsv3
 func Test_Rsv123_Fail(t *testing.T) {
-	// 创建测试服务
+	// 1.创建测试服务
 	ts := createConnTestEcho(t, nil, echoCtrl{readNeedSuccess: false})
-
-	// 连接
-	c, err := Dial(ts.URL)
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
 
 	for _, f := range []frame{
 		{frameHeader: frameHeader{rsv1: true, mask: true}},
 		{frameHeader: frameHeader{rsv2: true, mask: true}},
 		{frameHeader: frameHeader{rsv3: true, mask: true}},
 	} {
+
+		// 2.连接
+		c, err := Dial(ts.URL)
+		assert.NoError(t, err)
+		if err != nil {
+			return
+		}
 
 		if f.mask {
 			newMask(f.maskValue[:])
@@ -92,7 +92,8 @@ func Test_Rsv123_Fail(t *testing.T) {
 			return
 		}
 
-		err := c.w.Flush()
+		err = c.w.Flush()
 		assert.NoError(t, err)
+		c.Close()
 	}
 }

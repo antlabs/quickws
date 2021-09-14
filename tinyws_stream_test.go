@@ -69,8 +69,8 @@ func createStreamServer(t *testing.T, max int) *httptest.Server {
 			err = c.WriteTimeout(Binary, d, 3*time.Second)
 			assert.NoError(t, err)
 		}
-		c.WriteTimeout(Binary, []byte("stop"), 3*time.Second)
-		c.WriteTimeout(Close, nil, 3*time.Second)
+		assert.NoError(t, c.WriteTimeout(Binary, []byte("stop"), 3*time.Second))
+		assert.NoError(t, c.WriteTimeout(Close, nil, 3*time.Second))
 	}))
 
 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")

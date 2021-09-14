@@ -206,7 +206,7 @@ func Test_Client_Ping(t *testing.T) {
 		binary.BigEndian.PutUint16(data, 1000)
 		copy(data[2:], "bye")
 
-		c.WriteMessage(Close, data)
+		assert.NoError(t, c.WriteMessage(Close, data))
 		// 检查下是否是Pong
 		assert.Equal(t, op, Pong)
 	}

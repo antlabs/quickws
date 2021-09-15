@@ -274,6 +274,11 @@ func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error)
 	return c.WriteMessage(op, data)
 }
 
+func (c *Conn) WriteCloseTimeout(sc StatusCode, t time.Duration) (err error) {
+	buf := statusCodeToBytes(sc)
+	return c.WriteTimeout(Close, buf, t)
+}
+
 func (c *Conn) Close() error {
 	return c.c.Close()
 }

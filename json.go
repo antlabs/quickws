@@ -20,7 +20,7 @@ import (
 )
 
 // 写入json至websocket连接
-func (c *Conn) WriteJsonTimeout(op Opcode, v interface{}, t time.Duration) (err error) {
+func (c *Conn) WriteJSONTimeout(op Opcode, v interface{}, t time.Duration) (err error) {
 	all, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -30,7 +30,7 @@ func (c *Conn) WriteJsonTimeout(op Opcode, v interface{}, t time.Duration) (err 
 }
 
 // 从websocket读取json
-func (c *Conn) ReadJsonTimeout(t time.Duration, v interface{}) (op Opcode, err error) {
+func (c *Conn) ReadJSONTimeout(v interface{}, t time.Duration) (op Opcode, err error) {
 	all, op, err := c.ReadTimeout(t)
 	if err != nil {
 		return op, err

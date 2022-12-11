@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/guonaihong/tinyws"
+	"github.com/antlabs/tinyws"
 
 	//"os"
 

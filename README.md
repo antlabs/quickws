@@ -1,9 +1,9 @@
 ## 简介
 tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 
-![Go](https://github.com/guonaihong/tinyws/workflows/Go/badge.svg)
-[![codecov](https://codecov.io/gh/guonaihong/tinyws/branch/main/graph/badge.svg)](https://codecov.io/gh/guonaihong/tinyws)
-[![Go Report Card](https://goreportcard.com/badge/github.com/guonaihong/tinyws)](https://goreportcard.com/report/github.com/guonaihong/tinyws)
+![Go](https://github.com/antlabs/tinyws/workflows/Go/badge.svg)
+[![codecov](https://codecov.io/gh/antlabs/tinyws/branch/main/graph/badge.svg)](https://codecov.io/gh/antlabs/tinyws)
+[![Go Report Card](https://goreportcard.com/badge/github.com/antlabs/tinyws)](https://goreportcard.com/report/github.com/antlabs/tinyws)
 
 ## 特性
 * 3倍的简单
@@ -24,7 +24,7 @@ tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
 ## Installation
 ```console
-go get github.com/guonaihong/tinyws
+go get github.com/antlabs/tinyws
 ```
 
 ## example
@@ -39,7 +39,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/guonaihong/tinyws"
+	"github.com/antlabs/tinyws"
 )
 
 func main() {
@@ -78,7 +78,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/guonaihong/tinyws"
+	"github.com/antlabs/tinyws"
 )
 
 func main() {

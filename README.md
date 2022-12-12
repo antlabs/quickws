@@ -13,8 +13,8 @@ tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 ## 内容
 * [安装](#Installation)
 * [例子](#example)
-	* [客户端连服务端](#客户端连服务端)
-	* [服务端接受客户端请求](#服务端接受客户端请求)
+	* [服务端](#服务端)
+	* [客户端](#客户端)
 * [配置函数](#配置函数)
 	* [客户端配置参数](#客户端配置)
 		* [配置header](#配置header)
@@ -28,7 +28,7 @@ go get github.com/antlabs/tinyws
 ```
 
 ## example
-### 客户端连服务端
+### 服务端
 ```go
 package main
 
@@ -71,7 +71,7 @@ func main() {
 }
 
 ```
-### 服务端接受客户端请求
+### 客户端
 ```go
 package main
 

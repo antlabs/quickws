@@ -1,4 +1,4 @@
-module github.com/guonaihong/tinyws
+module github.com/antlabs/tinyws
 
 go 1.16
 

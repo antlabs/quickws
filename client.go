@@ -40,8 +40,7 @@ type DialOption struct {
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
 // 又是一顿if else, 咬文嚼字
-func Dial(rawUrl string, opts ...Option) (*Conn, error) {
-
+func Dial(rawUrl string, opts ...OptionClient) (*Conn, error) {
 	var dial DialOption
 	u, err := url.Parse(rawUrl)
 	if err != nil {
@@ -54,7 +53,7 @@ func Dial(rawUrl string, opts ...Option) (*Conn, error) {
 		dial.Header = make(http.Header)
 	}
 	for _, o := range opts {
-		o.apply(&dial)
+		o(&dial)
 	}
 
 	return dial.Dial()
@@ -68,7 +67,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	case d.u.Scheme == "ws":
 		d.u.Scheme = "http"
 	default:
-		//TODO 返回错误
+		// TODO 返回错误
 		return nil, "", fmt.Errorf("未知的scheme:%s", d.u.Scheme)
 	}
 
@@ -95,7 +94,6 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 
 	req.Header = d.Header
 	return req, secWebSocket, nil
-
 }
 
 // 检查服务端响应的数据
@@ -150,7 +148,6 @@ func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 }
 
 func (d *DialOption) Dial() (c *Conn, err error) {
-
 	req, secWebSocket, err := d.handshake()
 	if err != nil {
 		return nil, err

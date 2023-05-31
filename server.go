@@ -33,10 +33,10 @@ type ConnOption struct {
 	config
 }
 
-func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *Conn, err error) {
+func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *Conn, err error) {
 	var conf ConnOption
 	for _, o := range opts {
-		o.apply(&conf)
+		o(&conf)
 	}
 
 	if ecode, err := checkRequest(r); err != nil {
@@ -95,20 +95,19 @@ func writeResponse(r *http.Request, w *bufio.Writer, cnf config) (err error) {
 		return
 	}
 
-	//写入Sec-WebSocket-Accept key
+	// 写入Sec-WebSocket-Accept key
 	if err = writeHeaderKey(w, "Sec-WebSocket-Accept"); err != nil {
 		return
 	}
-	//写入Sec-WebSocket-Accept vla
+	// 写入Sec-WebSocket-Accept vla
 	if err = writeHeaderVal(w, secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))); err != nil {
 		return
 	}
-	//给客户端回个信, 表示支持解压缩模式
+	// 给客户端回个信, 表示支持解压缩模式
 	if cnf.decompression {
 		if _, err = w.WriteString(strHeaderExtensions); err != nil {
 			return
 		}
-
 	}
 
 	if _, err = w.WriteString(strCRLF); err != nil {
@@ -126,12 +125,12 @@ func writeResponse(r *http.Request, w *bufio.Writer, cnf config) (err error) {
 func checkRequest(r *http.Request) (ecode int, err error) {
 	// 不是get方法的
 	if r.Method != http.MethodGet {
-		//TODO错误消息
+		// TODO错误消息
 		return http.StatusMethodNotAllowed, fmt.Errorf("%w :%s", ErrOnlyGETSupported, r.Method)
 	}
 	// http版本低于1.1
 	if !r.ProtoAtLeast(1, 1) {
-		//TODO错误消息
+		// TODO错误消息
 		return http.StatusHTTPVersionNotSupported, ErrHTTPProtocolNotSupported
 	}
 

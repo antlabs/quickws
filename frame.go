@@ -50,7 +50,9 @@ func readFrame(r io.Reader) (f frame, err error) {
 		return f, err
 	}
 
-	f.payload = make([]byte, h.payloadLen)
+	if f.payload == nil || int64(cap(f.payload)) < h.payloadLen {
+		f.payload = make([]byte, h.payloadLen)
+	}
 
 	if _, err = io.ReadFull(r, f.payload); err != nil {
 		return f, err
@@ -64,7 +66,6 @@ func readFrame(r io.Reader) (f frame, err error) {
 }
 
 func readHeader(r io.Reader) (h frameHeader, err error) {
-
 	head := make([]byte, 2, maxFrameHeaderSize)
 
 	_, err = io.ReadFull(r, head)
@@ -99,7 +100,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 		// 8字节长度
 		have += 8
 	default:
-		//预期之外的, 直接报错
+		// 预期之外的, 直接报错
 		return h, ErrFramePayloadLength
 	}
 

@@ -56,9 +56,9 @@ func secWebSocketAcceptVal(val string) string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
-// 获取没有绑定服务的端口
+// 获取没有绑定服务的端口, 测试代码使用
 func GetNoPortExists() string {
-	startPort := 1000 //1000以下的端口很多时间需要root权限才能使用
+	startPort := 1000 // 1000以下的端口很多时间需要root权限才能使用
 	for port := startPort; port < 65535; port++ {
 		l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 		if err != nil {

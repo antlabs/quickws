@@ -14,8 +14,12 @@
 
 package tinyws
 
-type ServerOption interface {
-	apply(*ConnOption)
+type OptionServer func(*ConnOption)
+
+func WithServerCallback(cb Callback) OptionServer {
+	return func(o *ConnOption) {
+		o.Callback = cb
+	}
 }
 
 type serverReplyPing bool
@@ -25,40 +29,30 @@ func (r serverReplyPing) apply(o *ConnOption) {
 }
 
 // 配置自动回应ping frame, 当收到ping， 回一个pong
-func WithServerReplyPing() ServerOption {
-	return serverReplyPing(true)
-}
-
-type decompressionServer bool
-
-func (c2 decompressionServer) apply(c *ConnOption) {
-	c.decompression = bool(c2)
+func WithServerReplyPing() OptionServer {
+	return func(o *ConnOption) {
+		o.replyPing = true
+	}
 }
 
 // 配置解压缩
-func WithServerDecompression() ServerOption {
-	return decompressionServer(true)
-}
-
-type decompressAndCompressServer bool
-
-func (dc decompressAndCompressServer) apply(c *ConnOption) {
-	c.compression = bool(dc)
-	c.decompression = bool(dc)
+func WithServerDecompression() OptionServer {
+	return func(o *ConnOption) {
+		o.decompression = true
+	}
 }
 
 // 配置压缩和解压缩
-func WithServerDecompressAndCompress() ServerOption {
-	return decompressAndCompressServer(true)
-}
-
-type ignorePongServer bool
-
-func (i ignorePongServer) apply(c *ConnOption) {
-	c.ignorePong = bool(i)
+func WithServerDecompressAndCompress() OptionServer {
+	return func(o *ConnOption) {
+		o.compression = true
+		o.decompression = true
+	}
 }
 
 // 配置忽略pong消息
-func WithServerIgnorePong() ServerOption {
-	return ignorePongServer(true)
+func WithServerIgnorePong() OptionServer {
+	return func(o *ConnOption) {
+		o.ignorePong = true
+	}
 }

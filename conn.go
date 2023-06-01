@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tinyws
+package quickws
 
 import (
 	"bufio"
@@ -29,6 +29,8 @@ const (
 	maxControlFrameSize = 125
 )
 
+// var _ net.Conn = (*Conn)(nil)
+
 type Conn struct {
 	r      *bufio.Reader
 	w      *bufio.Writer
@@ -43,7 +45,8 @@ func newConn(c net.Conn, rw *bufio.ReadWriter, client bool, conf config) *Conn {
 	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client, config: conf}
 }
 
-func (c *Conn) writeErr(code StatusCode, userErr error) error {
+func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
+	defer c.Callback.OnClose(c, userErr)
 	if err := c.WriteTimeout(Close, statusCodeToBytes(code), 2*time.Second); err != nil {
 		return err
 	}
@@ -76,14 +79,39 @@ func decode(payload []byte) ([]byte, error) {
 	return o.Bytes(), nil
 }
 
-func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
+func (c *Conn) ReadLoop() {
+	c.OnOpen(c)
+
+	c.readLoop()
+}
+
+func (c *Conn) readLoop() {
 	var f frame
 	var fragmentFrame *frame
 
+	var bufArray [1024]byte
+	buf := bufArray[:0]
+
+	defer c.Close()
+
+	var err error
+	var op Opcode
 	for {
-		f, err = readFrame(c.r)
+		if c.readTimeout > 0 {
+			err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
+			if err != nil {
+				c.Callback.OnClose(c, err)
+			}
+		}
+		f, err = readFrame(c.r, &buf)
 		if err != nil {
+			c.Callback.OnClose(c, err)
 			return
+		}
+		if c.readTimeout > 0 {
+			if err = c.c.SetReadDeadline(time.Time{}); err != nil {
+				c.Callback.OnClose(c, err)
+			}
 		}
 
 		op = f.opcode
@@ -93,7 +121,9 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 		// 检查rsv1 rsv2 rsv3
 		if f.rsv1 && c.failRsv1(op) || f.rsv2 || f.rsv3 {
-			return nil, f.opcode, c.writeErr(ProtocolError, fmt.Errorf("%w:rsv1(%t) rsv2(%t) rsv2(%t)", ErrRsv123, f.rsv1, f.rsv2, f.rsv3))
+			err = fmt.Errorf("%w:rsv1(%t) rsv2(%t) rsv2(%t)", ErrRsv123, f.rsv1, f.rsv2, f.rsv3)
+			c.writeErrAndOnClose(ProtocolError, err)
+			return
 		}
 
 		if fragmentFrame != nil && !f.opcode.isControl() {
@@ -102,7 +132,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 
 				// 分段的在这返回
 				if f.fin {
-					//解压缩
+					// 解压缩
 					if fragmentFrame.rsv1 && c.decompression {
 						fragmentFrame.payload, err = decode(fragmentFrame.payload)
 						if err != nil {
@@ -112,16 +142,17 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 					// 这里的check按道理应该放到f.fin前面， 会更符合rfc的标准, 前提是utf8.Valid修改成流式解析
 					// TODO utf8.Valid 修改成流式解析
 					if fragmentFrame.opcode == Text && !utf8.Valid(fragmentFrame.payload) {
-						c.c.Close()
-						return nil, f.opcode, ErrTextNotUTF8
+						c.Callback.OnClose(c, ErrTextNotUTF8)
+						return
 					}
 
-					return fragmentFrame.payload, fragmentFrame.opcode, nil
+					c.Callback.OnMessage(c, fragmentFrame.opcode, fragmentFrame.payload)
 				}
 				continue
 			}
 
-			return nil, f.opcode, c.writeErr(ProtocolError, ErrFrameOpcode)
+			c.writeErrAndOnClose(ProtocolError, ErrFrameOpcode)
+			return
 		}
 
 		// 检查opcode
@@ -129,6 +160,7 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 		case Text, Binary:
 			if !f.fin {
 				f2 := f
+				buf = nil
 				fragmentFrame = &f2
 				continue
 			}
@@ -141,85 +173,80 @@ func (c *Conn) readLoop() (all []byte, op Opcode, err error) {
 			}
 
 			if f.opcode == Text {
-
 				if !utf8.Valid(f.payload) {
 					c.c.Close()
-					return nil, f.opcode, ErrTextNotUTF8
+					c.Callback.OnClose(c, ErrTextNotUTF8)
+					return
 				}
 			}
 
-			return f.payload, f.opcode, err
+			c.Callback.OnMessage(c, f.opcode, f.payload)
 		case Close, Ping, Pong:
 			//  对方发的控制消息太大
 			if f.payloadLen > maxControlFrameSize {
-				return nil, f.opcode, c.writeErr(ProtocolError, ErrMaxControlFrameSize)
+				c.writeErrAndOnClose(ProtocolError, ErrMaxControlFrameSize)
+				return
 			}
 			// Close, Ping, Pong 不能分片
 			if !f.fin {
-
-				return nil, f.opcode, c.writeErr(ProtocolError, ErrNOTBeFragmented)
+				c.writeErrAndOnClose(ProtocolError, ErrNOTBeFragmented)
+				return
 			}
 
 			if f.opcode == Close {
 				if len(f.payload) == 0 {
-					return nil, f.opcode, c.writeErr(NormalClosure, ErrClosePayloadTooSmall)
+					c.writeErrAndOnClose(NormalClosure, ErrClosePayloadTooSmall)
+					return
 				}
 
 				if len(f.payload) < 2 {
-					return nil, f.opcode, c.writeErr(ProtocolError, ErrClosePayloadTooSmall)
+					c.writeErrAndOnClose(ProtocolError, ErrClosePayloadTooSmall)
+					return
 				}
 
 				if !utf8.Valid(f.payload[2:]) {
-					return nil, f.opcode, c.writeErr(ProtocolError, ErrTextNotUTF8)
+					c.writeErrAndOnClose(ProtocolError, ErrTextNotUTF8)
+					return
 				}
 
 				code := binary.BigEndian.Uint16(f.payload)
 				if !validCode(code) {
-					return nil, f.opcode, c.writeErr(ProtocolError, ErrCloseValue)
+					c.writeErrAndOnClose(ProtocolError, ErrCloseValue)
+					return
 				}
 
 				// 回敬一个close包
 				if err := c.WriteTimeout(Close, f.payload, 2*time.Second); err != nil {
-					return nil, f.opcode, err
+					return
 				}
 
-				return nil, Close, bytesToCloseErrMsg(f.payload)
+				c.Callback.OnClose(c, bytesToCloseErrMsg(f.payload))
+				return
 			}
 
 			if f.opcode == Ping {
 				// 回一个pong包
 				if c.replyPing {
 					if err := c.WriteTimeout(Pong, f.payload, 2*time.Second); err != nil {
-						return nil, f.opcode, err
+						c.Callback.OnClose(c, err)
+						return
 					}
+					c.Callback.OnMessage(c, f.opcode, f.payload)
 					continue
 				}
-
 			}
 
 			if f.opcode == Pong && c.ignorePong {
 				continue
 			}
 
-			return nil, f.opcode, nil
+			c.Callback.OnMessage(c, f.opcode, nil)
 		default:
-			return nil, f.opcode, c.writeErr(ProtocolError, ErrOpcode)
+			c.writeErrAndOnClose(ProtocolError, ErrOpcode)
+			return
 		}
 
 	}
-}
-
-func (c *Conn) ReadMessage() (all []byte, op Opcode, err error) {
-	return c.readLoop()
-}
-
-func (c *Conn) ReadTimeout(t time.Duration) (all []byte, op Opcode, err error) {
-	if err = c.c.SetDeadline(time.Now().Add(t)); err != nil {
-		return
-	}
-
-	defer func() { _ = c.c.SetDeadline(time.Time{}) }()
-	return c.readLoop()
 }
 
 type wrapBuffer struct {
@@ -263,6 +290,10 @@ func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
 		return err
 	}
 	return c.w.Flush()
+}
+
+func (c *Conn) SetDeadline(t time.Time) error {
+	return c.c.SetDeadline(t)
 }
 
 func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error) {

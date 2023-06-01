@@ -1,9 +1,9 @@
 ## 简介
-tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
+quickws是一个极简的websocket库
 
-![Go](https://github.com/antlabs/tinyws/workflows/Go/badge.svg)
-[![codecov](https://codecov.io/gh/antlabs/tinyws/branch/main/graph/badge.svg)](https://codecov.io/gh/antlabs/tinyws)
-[![Go Report Card](https://goreportcard.com/badge/github.com/antlabs/tinyws)](https://goreportcard.com/report/github.com/antlabs/tinyws)
+![Go](https://github.com/antlabs/quickws/workflows/Go/badge.svg)
+[![codecov](https://codecov.io/gh/antlabs/quickws/branch/main/graph/badge.svg)](https://codecov.io/gh/antlabs/quickws)
+[![Go Report Card](https://goreportcard.com/badge/github.com/antlabs/quickws)](https://goreportcard.com/report/github.com/antlabs/quickws)
 
 ## 特性
 * 3倍的简单
@@ -24,50 +24,59 @@ tinyws是一个极简的websocket库, 总代码量控制在3k行以下.
 		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
 ## Installation
 ```console
-go get github.com/antlabs/tinyws
+go get github.com/antlabs/quickws
 ```
 
 ## example
 ### 服务端
 ```go
+
 package main
 
 import (
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"time"
-
-	"github.com/antlabs/tinyws"
+	"github.com/antlabs/quickws"
 )
 
-func main() {
-	h1 := func(w http.ResponseWriter, r *http.Request) {
-		c, err := tinyws.Upgrade(w, r)
-		if err != nil {
-			fmt.Println("Upgrade fail:", err)
-			return
-		}
-		defer c.Close()
+type echoHandler struct{}
 
-		for {
-			all, op, err := c.ReadTimeout(3 * time.Second)
-			if err != nil {
-				if err != io.EOF {
-					fmt.Println("err = ", err)
-				}
-				return
-			}
+func (e *echoHandler) OnOpen(c *quickws.Conn) {
+	fmt.Println("OnOpen:", c)
+}
 
-			os.Stdout.Write(all)
-			c.WriteTimeout(op, all, 3*time.Second)
-		}
+func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
+	fmt.Println("OnMessage:", c, msg, op)
+	if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+		fmt.Println("write fail:", err)
+	}
+}
+
+func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
+	fmt.Println("OnClose:", c, err)
+}
+
+// echo测试服务
+func echo(w http.ResponseWriter, r *http.Request) {
+	c, err := quickws.Upgrade(w, r, quickws.WithServerReplyPing(),
+		// quickws.WithServerDecompression(),
+		// quickws.WithServerIgnorePong(),
+		quickws.WithServerCallback(&echoHandler{}),
+		quickws.WithServerReadTimeout(5*time.Second),
+	)
+	if err != nil {
+		fmt.Println("Upgrade fail:", err)
+		return
 	}
 
-	http.HandleFunc("/", h1)
+	c.ReadLoop()
+}
 
-	http.ListenAndServe(":12345", nil)
+func main() {
+	http.HandleFunc("/", echo)
+
+	http.ListenAndServe(":9001", nil)
 }
 
 ```
@@ -78,30 +87,34 @@ package main
 import (
 	"fmt"
 
-	"github.com/antlabs/tinyws"
+	"github.com/antlabs/quickws"
 )
 
+type echoHandler struct{}
+
+func (e *echoHandler) OnOpen(c *quickws.Conn) {
+	fmt.Println("OnOpen:", c)
+}
+
+func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
+	fmt.Println("OnMessage:", c, msg, op)
+	if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+		fmt.Println("write fail:", err)
+	}
+}
+
+func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
+	fmt.Println("OnClose:", c, err)
+}
+
 func main() {
-	c, err := tinyws.Dial("ws://127.0.0.1:12345/test")
+	c, err := quickws.Dial("ws://127.0.0.1:12345/test")
 	if err != nil {
 		fmt.Printf("err = %v\n", err)
 		return
 	}
 
-	defer c.Close()
-
-	err = c.WriteMessage(tinyws.Text, []byte("hello"))
-	if err != nil {
-		fmt.Printf("err = %v\n", err)
-		return
-	}
-
-	all, _, err := c.ReadMessage()
-	if err != nil {
-		fmt.Printf("err = %v\n", err)
-		return
-	}
-	fmt.Printf("write :%s\n", string(all))
+	c.ReadLoop()
 
 }
 
@@ -112,7 +125,7 @@ func main() {
 #### 配置header
 ```go
 func main() {
-	tinyws.Dial("ws://127.0.0.1:12345/test", tinyws.WithHTTPHeader(http.Header{
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithHTTPHeader(http.Header{
 		"h1": "v1",
 		"h2":"v2", 
 	}))
@@ -121,21 +134,21 @@ func main() {
 #### 配置握手时的超时时间
 ```go
 func main() {
-	tinyws.Dial("ws://127.0.0.1:12345/test", tinyws.WithDialTimeout(2 * time.Second))
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithDialTimeout(2 * time.Second))
 }
 ```
 
 #### 配置自动回复ping消息
 ```go
 func main() {
-	tinyws.Dial("ws://127.0.0.1:12345/test", tinyws.WithReplyPing())
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithReplyPing())
 }
 ```
 ### 服务端配置参数
 #### 配置服务自动回复ping消息
 ```go
 func main() {
-	c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing())
+	c, err := quickws.Upgrade(w, r, quickws.WithServerReplyPing())
         if err != nil {
                 fmt.Println("Upgrade fail:", err)
                 return

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tinyws
+package quickws
 
 import (
 	"crypto/tls"
@@ -21,6 +21,12 @@ import (
 )
 
 type OptionClient func(*DialOption)
+
+func WithClientCallback(cb Callback) OptionClient {
+	return func(o *DialOption) {
+		o.Callback = cb
+	}
+}
 
 // 配置tls.config
 func WithTLSConfig(tls *tls.Config) OptionClient {

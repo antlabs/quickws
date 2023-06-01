@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tinyws
+package quickws
 
 import (
 	"encoding/binary"
@@ -44,14 +44,18 @@ type frame struct {
 	payload []byte
 }
 
-func readFrame(r io.Reader) (f frame, err error) {
+func readFrame(r io.Reader, buf *[]byte) (f frame, err error) {
 	h, err := readHeader(r)
 	if err != nil {
 		return f, err
 	}
 
-	if f.payload == nil || int64(cap(f.payload)) < h.payloadLen {
+	f.payload = *buf
+	if int64(cap(f.payload)) < h.payloadLen {
 		f.payload = make([]byte, h.payloadLen)
+		*buf = f.payload
+	} else {
+		f.payload = f.payload[:h.payloadLen]
 	}
 
 	if _, err = io.ReadFull(r, f.payload); err != nil {
@@ -66,7 +70,8 @@ func readFrame(r io.Reader) (f frame, err error) {
 }
 
 func readHeader(r io.Reader) (h frameHeader, err error) {
-	head := make([]byte, 2, maxFrameHeaderSize)
+	var headArray [maxFrameHeaderSize]byte
+	head := headArray[:2]
 
 	_, err = io.ReadFull(r, head)
 	if err != nil {
@@ -129,7 +134,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 // https://datatracker.ietf.org/doc/html/rfc6455#section-5.2
 // (the most significant bit MUST be 0)
 func writeHeader(w io.Writer, h frameHeader) (err error) {
-	head := make([]byte, maxFrameHeaderSize)
+	var head [maxFrameHeaderSize]byte
 
 	if h.fin {
 		head[0] |= 1 << 7

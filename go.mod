@@ -1,4 +1,4 @@
-module github.com/antlabs/tinyws
+module github.com/antlabs/quickws
 
 go 1.16
 

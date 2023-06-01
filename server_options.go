@@ -12,20 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tinyws
+package quickws
+
+import "time"
 
 type OptionServer func(*ConnOption)
+
+func WithServerReadTimeout(t time.Duration) OptionServer {
+	return func(o *ConnOption) {
+		o.readTimeout = t
+	}
+}
 
 func WithServerCallback(cb Callback) OptionServer {
 	return func(o *ConnOption) {
 		o.Callback = cb
 	}
-}
-
-type serverReplyPing bool
-
-func (r serverReplyPing) apply(o *ConnOption) {
-	o.replyPing = bool(r)
 }
 
 // 配置自动回应ping frame, 当收到ping， 回一个pong

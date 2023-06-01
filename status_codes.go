@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tinyws
+package quickws
 
 import (
 	"encoding/binary"
@@ -78,7 +78,7 @@ type CloseErrMsg struct {
 func (c CloseErrMsg) Error() string {
 	var out strings.Builder
 
-	out.WriteString("<tinyws close: code:")
+	out.WriteString("<quickws close: code:")
 
 	out.WriteString(strconv.Itoa(int(c.Code)))
 

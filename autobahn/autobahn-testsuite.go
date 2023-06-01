@@ -1,3 +1,4 @@
+//go:build tinywstest
 // +build tinywstest
 
 package main
@@ -5,44 +6,43 @@ package main
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/antlabs/tinyws"
-
-	//"os"
-
 	"time"
+
+	"github.com/antlabs/quickws"
+	//"os"
 )
+
+type echoHandler struct{}
+
+func (e *echoHandler) OnOpen(c *quickws.Conn) {
+	fmt.Println("OnOpen:", c)
+}
+
+func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
+	fmt.Println("OnMessage:", c, msg, op)
+	if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+		fmt.Println("write fail:", err)
+	}
+}
+
+func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
+	fmt.Println("OnClose:", c, err)
+}
 
 // echo测试服务
 func echo(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	c, err := tinyws.Upgrade(w, r, tinyws.WithServerReplyPing(), tinyws.WithServerDecompression(), tinyws.WithServerIgnorePong())
+	c, err := quickws.Upgrade(w, r, quickws.WithServerReplyPing(),
+		quickws.WithServerDecompression(),
+		quickws.WithServerIgnorePong(),
+		quickws.WithServerCallback(&echoHandler{}),
+		quickws.WithServerReadTimeout(5*time.Second),
+	)
 	if err != nil {
 		fmt.Println("Upgrade fail:", err)
 		return
 	}
 
-	fmt.Printf("new conn:%p ", c)
-	defer func() {
-		c.Close()
-		fmt.Printf("conn bye bye %p:%v\n", c, time.Since(now))
-	}()
-
-	for {
-		now := time.Now()
-		all, op, err := c.ReadTimeout(3 * time.Second)
-		if err != nil {
-			fmt.Printf("err = %v ", err)
-			return
-		}
-
-		fmt.Printf("%p, read:%v ", c, time.Since(now))
-
-		//os.Stdout.Write(all)
-		now = time.Now()
-		c.WriteTimeout(op, all, 3*time.Second)
-		fmt.Printf("%p, write:%v ", c, time.Since(now))
-	}
+	c.ReadLoop()
 }
 
 func main() {

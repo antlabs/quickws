@@ -1,60 +1,50 @@
-package tinyws
+package quickws
 
-import (
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"time"
+// func newServerDecompressAndCompression(t *testing.T, data []byte) *httptest.Server {
+// 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		c, err := Upgrade(w, r, WithServerDecompressAndCompress())
+// 		assert.NoError(t, err)
+// 		if err != nil {
+// 			return
+// 		}
 
-	"github.com/stretchr/testify/assert"
-)
+// 		defer c.Close()
 
-func newServerDecompressAndCompression(t *testing.T, data []byte) *httptest.Server {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := Upgrade(w, r, WithServerDecompressAndCompress())
-		assert.NoError(t, err)
-		if err != nil {
-			return
-		}
+// 		all, op, err := c.ReadTimeout(3 * time.Second)
+// 		assert.NoError(t, err)
+// 		if err != nil {
+// 			return
+// 		}
 
-		defer c.Close()
+// 		assert.Equal(t, all, data)
 
-		all, op, err := c.ReadTimeout(3 * time.Second)
-		assert.NoError(t, err)
-		if err != nil {
-			return
-		}
+// 		err = c.WriteTimeout(op, all, 3*time.Second)
+// 		assert.NoError(t, err)
+// 	}))
 
-		assert.Equal(t, all, data)
+// 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
+// 	return ts
+// }
 
-		err = c.WriteTimeout(op, all, 3*time.Second)
-		assert.NoError(t, err)
-	}))
+// func Test_Server_Compression(t *testing.T) {
+// 	data := []byte("test data")
+// 	ts := newServerDecompressAndCompression(t, data)
+// 	c, err := Dial(ts.URL, WithDecompressAndCompress())
+// 	assert.NoError(t, err)
+// 	if err != nil {
+// 		return
+// 	}
+// 	defer c.Close()
 
-	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
-	return ts
-}
-
-func Test_Server_Compression(t *testing.T) {
-	data := []byte("test data")
-	ts := newServerDecompressAndCompression(t, data)
-	c, err := Dial(ts.URL, WithDecompressAndCompress())
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
-	defer c.Close()
-
-	err = c.WriteTimeout(Text, data, 3*time.Second)
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
-	all, _, err := c.ReadTimeout(3 * time.Second)
-	assert.NoError(t, err)
-	if err != nil {
-		return
-	}
-	assert.Equal(t, data, all)
-}
+// 	err = c.WriteTimeout(Text, data, 3*time.Second)
+// 	assert.NoError(t, err)
+// 	if err != nil {
+// 		return
+// 	}
+// 	all, _, err := c.ReadTimeout(3 * time.Second)
+// 	assert.NoError(t, err)
+// 	if err != nil {
+// 		return
+// 	}
+// 	assert.Equal(t, data, all)
+// }

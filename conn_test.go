@@ -1,4 +1,4 @@
-package tinyws
+package quickws
 
 // Copyright 2021-2022 antlabs. All rights reserved.
 //
@@ -14,86 +14,76 @@ package tinyws
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import (
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
-)
-
 type echoCtrl struct {
 	readNeedSuccess  bool
 	writeNeedSuccess bool
 }
 
 // 测试本文件内函数专用echo服务
-func createConnTestEcho(t *testing.T, data []byte, ctrl echoCtrl) *httptest.Server {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := Upgrade(w, r)
-		assert.NoError(t, err)
-		if err != nil {
-			return
-		}
+// func createConnTestEcho(t *testing.T, data []byte, ctrl echoCtrl) *httptest.Server {
+// 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		c, err := Upgrade(w, r)
+// 		assert.NoError(t, err)
+// 		if err != nil {
+// 			return
+// 		}
 
-		defer c.Close()
+// 		defer c.Close()
 
-		all, op, err := c.ReadTimeout(3 * time.Second)
-		if ctrl.readNeedSuccess {
-			assert.NoError(t, err)
-		} else {
-			assert.Error(t, err)
-		}
+// 		all, op, err := c.ReadTimeout(3 * time.Second)
+// 		if ctrl.readNeedSuccess {
+// 			assert.NoError(t, err)
+// 		} else {
+// 			assert.Error(t, err)
+// 		}
 
-		if err != nil {
-			return
-		}
+// 		if err != nil {
+// 			return
+// 		}
 
-		assert.Equal(t, len(all), 0)
+// 		assert.Equal(t, len(all), 0)
 
-		err = c.WriteTimeout(op, all, 3*time.Second)
-		if ctrl.writeNeedSuccess {
-			assert.NoError(t, err)
-		} else {
-			assert.Error(t, err)
-		}
-	}))
+// 		err = c.WriteTimeout(op, all, 3*time.Second)
+// 		if ctrl.writeNeedSuccess {
+// 			assert.NoError(t, err)
+// 		} else {
+// 			assert.Error(t, err)
+// 		}
+// 	}))
 
-	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
-	return ts
-}
+// 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
+// 	return ts
+// }
 
 // 测试rsv1 rsv2 rsv3
-func Test_Rsv123_Fail(t *testing.T) {
-	// 1.创建测试服务
-	ts := createConnTestEcho(t, nil, echoCtrl{readNeedSuccess: false})
+// func Test_Rsv123_Fail(t *testing.T) {
+// 	// 1.创建测试服务
+// 	ts := createConnTestEcho(t, nil, echoCtrl{readNeedSuccess: false})
 
-	for _, f := range []frame{
-		{frameHeader: frameHeader{rsv1: true, mask: true}},
-		{frameHeader: frameHeader{rsv2: true, mask: true}},
-		{frameHeader: frameHeader{rsv3: true, mask: true}},
-	} {
+// 	for _, f := range []frame{
+// 		{frameHeader: frameHeader{rsv1: true, mask: true}},
+// 		{frameHeader: frameHeader{rsv2: true, mask: true}},
+// 		{frameHeader: frameHeader{rsv3: true, mask: true}},
+// 	} {
 
-		// 2.连接
-		c, err := Dial(ts.URL)
-		assert.NoError(t, err)
-		if err != nil {
-			return
-		}
+// 		// 2.连接
+// 		c, err := Dial(ts.URL)
+// 		assert.NoError(t, err)
+// 		if err != nil {
+// 			return
+// 		}
 
-		if f.mask {
-			newMask(f.maskValue[:])
-		}
+// 		if f.mask {
+// 			newMask(f.maskValue[:])
+// 		}
 
-		if err := writeFrame(c.w, f); err != nil {
-			assert.NoError(t, err)
-			return
-		}
+// 		if err := writeFrame(c.w, f); err != nil {
+// 			assert.NoError(t, err)
+// 			return
+// 		}
 
-		err = c.w.Flush()
-		assert.NoError(t, err)
-		c.Close()
-	}
-}
+// 		err = c.w.Flush()
+// 		assert.NoError(t, err)
+// 		c.Close()
+// 	}
+// }

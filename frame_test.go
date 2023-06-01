@@ -1,4 +1,4 @@
-package tinyws
+package quickws
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ func Test_Frame_Read_NoMask(t *testing.T) {
 	all, err := io.ReadAll(r)
 	assert.NoError(t, err)
 
-	//fmt.Printf("opcode:%d", h.opcode)
+	// fmt.Printf("opcode:%d", h.opcode)
 	assert.Equal(t, string(all), "Hello")
 	assert.Equal(t, h.payloadLen, int64(len("Hello")))
 }
@@ -29,11 +29,12 @@ func Test_Frame_Read_NoMask(t *testing.T) {
 func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 	r := bytes.NewReader(haveMaskData)
 
-	f, err := readFrame(r)
+	buf := make([]byte, 512)
+	f, err := readFrame(r, &buf)
 	assert.NoError(t, err)
 
-	//fmt.Printf("opcode:%d", h.opcode)
-	assert.Equal(t, string(f.payload), "Hello")
+	// fmt.Printf("opcode:%d", h.opcode)
+	assert.Equal(t, string(f.payload[:f.payloadLen]), "Hello")
 
 	var w bytes.Buffer
 	assert.NoError(t, writeFrame(&w, f))
@@ -41,7 +42,7 @@ func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 }
 
 func Test_Frame_Write_NoMask(t *testing.T) {
-	//br := bytes.NewReader([]byte{0x81, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f})
+	// br := bytes.NewReader([]byte{0x81, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f})
 
 	var w bytes.Buffer
 	var h frameHeader

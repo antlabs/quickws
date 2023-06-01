@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tinyws
+package quickws
+
+import "time"
 
 type config struct {
+	Callback
 	replyPing     bool // 开启自动回复
 	decompression bool // 开启解压缩功能
 	compression   bool // 开启压缩功能
 	ignorePong    bool // 忽略pong消息
-
-	Callback
+	readTimeout   time.Duration
 }

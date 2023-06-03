@@ -43,9 +43,9 @@ func newMask(mask []byte) {
 
 func secWebSocketAccept() string {
 	// rfc规定是16字节
-	key := make([]byte, 16)
-	rand.Read(key)
-	return base64.StdEncoding.EncodeToString(key)
+	var key [16]byte
+	rand.Read(key[:])
+	return base64.StdEncoding.EncodeToString(key[:])
 }
 
 func secWebSocketAcceptVal(val string) string {

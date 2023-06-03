@@ -85,6 +85,7 @@ func (c *Conn) ReadLoop() {
 	c.readLoop()
 }
 
+// 读取websocket frame的循环
 func (c *Conn) readLoop() {
 	var f frame
 	var fragmentFrame *frame
@@ -257,18 +258,15 @@ func (w *wrapBuffer) Close() error {
 	return nil
 }
 
-func (c *Conn) WriteMessage(op Opcode, data []byte) (err error) {
+func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	var f frame
-	// 这里可以用sync.Pool优化下
-	writeBuf := make([]byte, len(data))
-	copy(writeBuf, data)
 
 	f.fin = true
 	f.rsv1 = c.compression && (op == Text || op == Binary)
 	if f.rsv1 {
 		var out wrapBuffer
 		w := compressNoContextTakeover(&out, defaultCompressionLevel)
-		if _, err = io.Copy(w, bytes.NewReader(data)); err != nil {
+		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
 			return
 		}
 

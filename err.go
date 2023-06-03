@@ -1,4 +1,4 @@
-// Copyright 2021-2022 antlabs. All rights reserved.
+// Copyright 2021-2023 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ var (
 	ErrFrameOpcode          = errors.New("error:since all data frames after the initial data frame must have opcode 0.")
 	ErrTextNotUTF8          = errors.New("error:text is not utf8 data")
 	ErrClosePayloadTooSmall = errors.New("error:close payload too small")
-	ErrCloseValue           = errors.New("error:close value is wrong") //close值不对
-	ErrEmptyClose           = errors.New("error:close value is empty") //close的值是空的
+	ErrCloseValue           = errors.New("error:close value is wrong") // close值不对
+	ErrEmptyClose           = errors.New("error:close value is empty") // close的值是空的
 	ErrWriteClosed          = errors.New("write close")
 )

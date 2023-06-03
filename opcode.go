@@ -1,4 +1,4 @@
-// Copyright 2021-2022 antlabs. All rights reserved.
+// Copyright 2021-2023 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ const (
 	Text
 	Binary
 	// 3 - 7保留
-	_ //3
+	_ // 3
 	_
-	_ //5
+	_ // 5
 	_
-	_ //7
+	_ // 7
 	Close
 	Ping
 	Pong

@@ -1,4 +1,4 @@
-// Copyright 2021-2022 antlabs. All rights reserved.
+// Copyright 2021-2023 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,8 +89,8 @@ func (c *Conn) readLoop() {
 	var f frame
 	var fragmentFrame *frame
 
-	var bufArray [1024]byte
-	buf := bufArray[:0]
+	var readBufArray [1024]byte
+	readBuf := readBufArray[:0]
 
 	defer c.Close()
 
@@ -103,7 +103,7 @@ func (c *Conn) readLoop() {
 				c.Callback.OnClose(c, err)
 			}
 		}
-		f, err = readFrame(c.r, &buf)
+		f, err = readFrame(c.r, &readBuf)
 		if err != nil {
 			c.Callback.OnClose(c, err)
 			return
@@ -160,7 +160,7 @@ func (c *Conn) readLoop() {
 		case Text, Binary:
 			if !f.fin {
 				f2 := f
-				buf = nil
+				readBuf = nil
 				fragmentFrame = &f2
 				continue
 			}

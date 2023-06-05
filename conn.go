@@ -15,7 +15,6 @@
 package quickws
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -32,17 +31,13 @@ const (
 // var _ net.Conn = (*Conn)(nil)
 
 type Conn struct {
-	r      *bufio.Reader
-	w      *bufio.Writer
 	c      net.Conn
 	client bool
 	config
 }
 
-func newConn(c net.Conn, rw *bufio.ReadWriter, client bool, conf config) *Conn {
-	rw.Reader.Reset(c)
-
-	return &Conn{c: c, r: rw.Reader, w: rw.Writer, client: client, config: conf}
+func newConn(c net.Conn, client bool, conf config) *Conn {
+	return &Conn{c: c, client: client, config: conf}
 }
 
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
@@ -85,39 +80,53 @@ func (c *Conn) ReadLoop() {
 	c.readLoop()
 }
 
+func (c *Conn) readDataFromNet(fixedBuf *fixedReader) (f frame, err error) {
+	if c.readTimeout > 0 {
+		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
+		if err != nil {
+			c.Callback.OnClose(c, err)
+		}
+	}
+
+	f, err = readFrame(fixedBuf)
+	if err != nil {
+		c.Callback.OnClose(c, err)
+		return
+	}
+
+	if c.readTimeout > 0 {
+		if err = c.c.SetReadDeadline(time.Time{}); err != nil {
+			c.Callback.OnClose(c, err)
+		}
+	}
+	return
+}
+
 // 读取websocket frame的循环
 func (c *Conn) readLoop() {
 	var f frame
-	var fragmentFrame *frame
-
-	var readBufArray [1024]byte
-	readBuf := readBufArray[:0]
+	var fragmentFrameHeader *frameHeader
 
 	defer c.Close()
 
 	var err error
 	var op Opcode
+
+	// 默认最小1k + 15
+	fixedBuf := newBuffer(c.c, getBytes(1024+maxFrameHeaderSize))
+
+	var fragmentFrameBuf []byte
 	for {
-		if c.readTimeout > 0 {
-			err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
-			if err != nil {
-				c.Callback.OnClose(c, err)
-			}
-		}
-		f, err = readFrame(c.r, &readBuf)
+
+		// 从网络读取数据
+		f, err = c.readDataFromNet(fixedBuf)
 		if err != nil {
-			c.Callback.OnClose(c, err)
 			return
-		}
-		if c.readTimeout > 0 {
-			if err = c.c.SetReadDeadline(time.Time{}); err != nil {
-				c.Callback.OnClose(c, err)
-			}
 		}
 
 		op = f.opcode
-		if fragmentFrame != nil {
-			op = fragmentFrame.opcode
+		if fragmentFrameHeader != nil {
+			op = fragmentFrameHeader.opcode
 		}
 
 		// 检查rsv1 rsv2 rsv3
@@ -127,27 +136,28 @@ func (c *Conn) readLoop() {
 			return
 		}
 
-		if fragmentFrame != nil && !f.opcode.isControl() {
+		if fragmentFrameHeader != nil && !f.opcode.isControl() {
 			if f.opcode == 0 {
-				fragmentFrame.payload = append(fragmentFrame.payload, f.payload...)
+				fragmentFrameBuf = append(fragmentFrameBuf, f.payload...)
 
 				// 分段的在这返回
 				if f.fin {
 					// 解压缩
-					if fragmentFrame.rsv1 && c.decompression {
-						fragmentFrame.payload, err = decode(fragmentFrame.payload)
+					if fragmentFrameHeader.rsv1 && c.decompression {
+						tmpeBuf, err := decode(fragmentFrameBuf)
 						if err != nil {
 							return
 						}
+						fragmentFrameBuf = tmpeBuf
 					}
 					// 这里的check按道理应该放到f.fin前面， 会更符合rfc的标准, 前提是utf8.Valid修改成流式解析
 					// TODO utf8.Valid 修改成流式解析
-					if fragmentFrame.opcode == Text && !utf8.Valid(fragmentFrame.payload) {
+					if fragmentFrameHeader.opcode == Text && !utf8.Valid(fragmentFrameBuf) {
 						c.Callback.OnClose(c, ErrTextNotUTF8)
 						return
 					}
 
-					c.Callback.OnMessage(c, fragmentFrame.opcode, fragmentFrame.payload)
+					c.Callback.OnMessage(c, fragmentFrameHeader.opcode, fragmentFrameBuf)
 				}
 				continue
 			}
@@ -160,9 +170,18 @@ func (c *Conn) readLoop() {
 		switch f.opcode {
 		case Text, Binary:
 			if !f.fin {
-				f2 := f
-				readBuf = nil
-				fragmentFrame = &f2
+				prevFrame := f.frameHeader
+				// 第一次分段
+				if fragmentFrameBuf == nil {
+					fragmentFrameBuf = f.payload
+					f.payload = nil
+
+					newBuf := getBytes(len(fixedBuf.bytes()))
+					fixedBuf.reset(newBuf)
+				}
+
+				// 让fragmentFrame的payload指向readBuf, readBuf 原引用直接丢弃
+				fragmentFrameHeader = &prevFrame
 				continue
 			}
 
@@ -284,10 +303,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 		newMask(f.maskValue[:])
 	}
 
-	if err := writeFrame(c.w, f); err != nil {
-		return err
-	}
-	return c.w.Flush()
+	return writeFrame(c.c, f)
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {

@@ -44,16 +44,26 @@ type frame struct {
 	payload []byte
 }
 
-func readFrame(r io.Reader, buf *[]byte) (f frame, err error) {
+func readFrame(r *fixedReader) (f frame, err error) {
 	h, err := readHeader(r)
 	if err != nil {
 		return f, err
 	}
 
-	f.payload = *buf
+	// 获取剩余可用的缓存区大小
+	f.payload = r.available()
+
+	// 如果缓存区不够, 重新分配
 	if int64(cap(f.payload)) < h.payloadLen {
-		f.payload = make([]byte, h.payloadLen)
-		*buf = f.payload
+		// 取得旧的buf
+		oldBuf := r.bytes()
+		// 获取新的buf
+		newBuf := getBytes(int(h.payloadLen))
+		// 将旧的buf放回池子里
+		putBytes(oldBuf)
+		// 重置缓存区
+		r.reset(newBuf)
+		// *buf = f.payload
 	} else {
 		f.payload = f.payload[:h.payloadLen]
 	}
@@ -73,8 +83,12 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 	var headArray [maxFrameHeaderSize]byte
 	head := headArray[:2]
 
-	_, err = io.ReadFull(r, head)
+	n, err := io.ReadFull(r, head)
 	if err != nil {
+		return
+	}
+	if n != 2 {
+		err = io.ErrUnexpectedEOF
 		return
 	}
 

@@ -43,7 +43,8 @@ func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 	r := bytes.NewReader(haveMaskData)
 
 	buf := make([]byte, 512)
-	f, err := readFrame(r, &buf)
+	rr := newBuffer(r, buf)
+	f, err := readFrame(rr)
 	assert.NoError(t, err)
 
 	// fmt.Printf("opcode:%d", h.opcode)

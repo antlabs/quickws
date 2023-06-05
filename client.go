@@ -203,5 +203,5 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		return
 	}
 
-	return newConn(conn, brw, true, d.config), nil
+	return newConn(conn, true, d.config), nil
 }

@@ -18,3 +18,14 @@ type Callback interface {
 	OnMessage(*Conn, Opcode, []byte)
 	OnClose(*Conn, error)
 }
+
+type DefCallback struct{}
+
+func (defcallback *DefCallback) OnOpen(_ *Conn) {
+}
+
+func (defcallback *DefCallback) OnMessage(_ *Conn, _ Opcode, _ []byte) {
+}
+
+func (defcallback *DefCallback) OnClose(_ *Conn, _ error) {
+}

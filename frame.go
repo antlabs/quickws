@@ -50,24 +50,21 @@ func readFrame(r *fixedReader) (f frame, err error) {
 		return f, err
 	}
 
-	// 获取剩余可用的缓存区大小
-	f.payload = r.available()
-
 	// 如果缓存区不够, 重新分配
-	if int64(cap(f.payload)) < h.payloadLen {
+	if int64(r.available()) < h.payloadLen {
 		// 取得旧的buf
 		oldBuf := r.bytes()
 		// 获取新的buf
-		newBuf := getBytes(int(h.payloadLen))
+		newBuf := getBytes(int(h.payloadLen) + maxFrameHeaderSize)
 		// 将旧的buf放回池子里
 		putBytes(oldBuf)
 		// 重置缓存区
 		r.reset(newBuf)
 		// *buf = f.payload
-	} else {
-		f.payload = f.payload[:h.payloadLen]
 	}
 
+	f.payload = r.free()
+	f.payload = f.payload[:h.payloadLen]
 	if _, err = io.ReadFull(r, f.payload); err != nil {
 		return f, err
 	}
@@ -76,6 +73,7 @@ func readFrame(r *fixedReader) (f frame, err error) {
 	if h.mask {
 		mask(f.payload, f.maskValue[:])
 	}
+
 	return f, nil
 }
 
@@ -197,6 +195,7 @@ func writeFrame(w io.Writer, f frame) (err error) {
 	}
 	if f.mask {
 		mask(f.payload, f.maskValue[:])
+		defer mask(f.payload, f.maskValue[:])
 	}
 	_, err = w.Write(f.payload)
 	return

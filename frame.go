@@ -45,13 +45,20 @@ type frame struct {
 }
 
 func readFrame(r *fixedReader) (f frame, err error) {
-	h, err := readHeader(r)
+	h, _, err := readHeader(r)
 	if err != nil {
 		return f, err
 	}
 
 	// 如果缓存区不够, 重新分配
-	if int64(r.available()) < h.payloadLen {
+
+	// h.payloadLen 是要读取body的总数据
+	// h.w - h.r 是已经读取未处理的数据
+	// 还需要读取的数据等于 h.payloadLen - (h.w - h.r)
+
+	// 已读取未处理的数据
+	readUnhandle := int64(r.w - r.r)
+	if h.payloadLen-readUnhandle > r.available() {
 		// 取得旧的buf
 		oldBuf := r.bytes()
 		// 获取新的buf
@@ -60,24 +67,38 @@ func readFrame(r *fixedReader) (f frame, err error) {
 		putBytes(oldBuf)
 		// 重置缓存区
 		r.reset(newBuf)
-		// *buf = f.payload
 	}
 
-	f.payload = r.free()
-	f.payload = f.payload[:h.payloadLen]
-	if _, err = io.ReadFull(r, f.payload); err != nil {
-		return f, err
+	// 返回可写的缓存区, 把已经读取的数据去掉，这里是把frame header的数据去掉
+	payload := r.free()
+	// 前面的reset已经保证了，buffer的大小是够的
+	needRead := 0
+	if h.payloadLen-readUnhandle > 0 {
+		needRead = int(h.payloadLen - readUnhandle)
 	}
 
+	if r.r != 0 {
+		panic("readFrame r != 0")
+	}
+	if needRead > 0 {
+		payload = payload[:needRead]
+		r2 := r.availableBuf()
+		if _, err = io.ReadFull(r2, payload); err != nil {
+			return f, err
+		}
+	}
+
+	f.payload = r.bytes()[:h.payloadLen]
 	f.frameHeader = h
 	if h.mask {
 		mask(f.payload, f.maskValue[:])
 	}
 
+	r.r, r.w = 0, 0
 	return f, nil
 }
 
-func readHeader(r io.Reader) (h frameHeader, err error) {
+func readHeader(r io.Reader) (h frameHeader, size int, err error) {
 	var headArray [maxFrameHeaderSize]byte
 	head := headArray[:2]
 
@@ -89,6 +110,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 		err = io.ErrUnexpectedEOF
 		return
 	}
+	size = 2
 
 	h.fin = head[0]&(1<<7) > 0
 	h.rsv1 = head[0]&(1<<6) > 0
@@ -100,6 +122,7 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 	h.mask = head[1]&(1<<7) > 0
 	if h.mask {
 		have += 4
+		size += 4
 	}
 
 	h.payloadLen = int64(head[1] & 0x7F)
@@ -113,12 +136,14 @@ func readHeader(r io.Reader) (h frameHeader, err error) {
 	case h.payloadLen == 126:
 		// 2字节长度
 		have += 2
+		size += 2
 	case h.payloadLen == 127:
 		// 8字节长度
 		have += 8
+		size += 8
 	default:
 		// 预期之外的, 直接报错
-		return h, ErrFramePayloadLength
+		return h, 0, ErrFramePayloadLength
 	}
 
 	head = head[:have]
@@ -187,6 +212,20 @@ func writeHeader(w io.Writer, h frameHeader) (err error) {
 
 	_, err = w.Write(head[:have])
 	return err
+}
+
+func writeMessgae(w io.Writer, op Opcode, writeBuf []byte, isClient bool) (err error) {
+	var f frame
+	f.fin = true
+	f.opcode = op
+	f.payload = writeBuf
+	f.payloadLen = int64(len(writeBuf))
+	if isClient {
+		f.mask = true
+		newMask(f.maskValue[:])
+	}
+
+	return writeFrame(w, f)
 }
 
 func writeFrame(w io.Writer, f frame) (err error) {

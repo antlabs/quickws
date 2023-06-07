@@ -280,6 +280,12 @@ func (w *wrapBuffer) Close() error {
 func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	var f frame
 
+	if op == Text {
+		if !utf8.Valid(writeBuf) {
+			return ErrTextNotUTF8
+		}
+	}
+
 	f.fin = true
 	f.rsv1 = c.compression && (op == Text || op == Binary)
 	if f.rsv1 {

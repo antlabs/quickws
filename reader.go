@@ -48,17 +48,22 @@ func (b *fixedReader) bytes() []byte {
 	return b.buf
 }
 
+// 返回可写的缓存区
 func (b *fixedReader) free() []byte {
 	r := b.r
 	copy(b.buf, b.buf[r:])
 	b.w -= r
 	b.r = 0
-	return b.buf
+	return b.buf[b.w:]
+}
+
+func (b *fixedReader) availableBuf() *fixedReader {
+	return &fixedReader{rd: b.rd, buf: b.buf[b.w:]}
 }
 
 // 返回剩余可用的缓存区大小
-func (b *fixedReader) available() int {
-	return len(b.buf[b.w:]) + b.r
+func (b *fixedReader) available() int64 {
+	return int64(len(b.buf[b.w:]) + b.r)
 }
 
 func (b *fixedReader) Buffered() int { return b.w - b.r }

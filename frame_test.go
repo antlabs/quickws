@@ -15,6 +15,7 @@ package quickws
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"testing"
 
@@ -26,10 +27,21 @@ var (
 	haveMaskData = []byte{0x81, 0x85, 0x37, 0xfa, 0x21, 0x3d, 0x7f, 0x9f, 0x4d, 0x51, 0x58}
 )
 
+func Test_Frame_Read_Size(t *testing.T) {
+	var out bytes.Buffer
+	err := writeMessgae(&out, Text, nil, true)
+	assert.NoError(t, err)
+	outLen := out.Len()
+	_, size, err := readHeader(&out)
+	assert.NoError(t, err)
+	assert.Equal(t, size, outLen)
+	fmt.Printf("%d:%d\n", size, outLen)
+}
+
 func Test_Frame_Read_NoMask(t *testing.T) {
 	r := bytes.NewReader(noMaskData)
 
-	h, err := readHeader(r)
+	h, _, err := readHeader(r)
 	assert.NoError(t, err)
 	all, err := io.ReadAll(r)
 	assert.NoError(t, err)

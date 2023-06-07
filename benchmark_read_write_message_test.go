@@ -135,7 +135,7 @@ func Benchmark_ReadFrame(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 
 		r.Reset(noMaskData)
-		_, err := readHeader(r)
+		_, _, err := readHeader(r)
 		if err != nil {
 			b.Fatal(err)
 		}

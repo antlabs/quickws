@@ -14,7 +14,7 @@ func selectIndex(n int) int {
 	return index
 }
 
-var pools = make([]sync.Pool, 0, maxIndex+1)
+var pools = make([]sync.Pool, 0, maxIndex)
 
 func init() {
 	for i := 1; i <= maxIndex; i++ {
@@ -29,7 +29,7 @@ func init() {
 }
 
 func getBytes(n int) []byte {
-	if n < maxFrameHeaderSize {
+	if n <= maxFrameHeaderSize {
 		return pools[0].Get().([]byte)
 	}
 
@@ -45,8 +45,8 @@ func putBytes(bytes []byte) {
 	if cap(bytes) < maxFrameHeaderSize {
 		panic("putBytes: bytes is too small")
 	}
-	newN := cap(bytes) - maxFrameHeaderSize - 1
-	index := selectIndex(newN)
+	newLen := cap(bytes) - maxFrameHeaderSize - 1
+	index := selectIndex(newLen)
 	if index >= len(pools) {
 		return
 	}

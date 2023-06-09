@@ -117,8 +117,8 @@ func Test_ReadMessage64k_Text(t *testing.T) {
 	tmp := append([]byte(nil), testTextMessage64kb...)
 	err = c.WriteMessage(Text, tmp)
 	assert.NoError(t, err)
-
 	time.Sleep(time.Second / 2)
+
 	assert.NoError(t, err)
 	assert.Equal(t, atomic.LoadInt32(&client.callbed), int32(1))
 }

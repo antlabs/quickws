@@ -63,10 +63,10 @@ func readFrame(r *fixedReader) (f frame, err error) {
 		oldBuf := r.bytes()
 		// 获取新的buf
 		newBuf := getBytes(int(h.payloadLen) + maxFrameHeaderSize)
-		// 将旧的buf放回池子里
-		putBytes(oldBuf)
 		// 重置缓存区
 		r.reset(newBuf)
+		// 将旧的buf放回池子里
+		putBytes(oldBuf)
 	}
 
 	// 返回可写的缓存区, 把已经读取的数据去掉，这里是把frame header的数据去掉
@@ -74,19 +74,26 @@ func readFrame(r *fixedReader) (f frame, err error) {
 	// 前面的reset已经保证了，buffer的大小是够的
 	needRead := 0
 	if h.payloadLen-readUnhandle > 0 {
+		// 还需要读取的数据等于 h.payloadLen - (h.w - h.r)
 		needRead = int(h.payloadLen - readUnhandle)
 	}
 
 	if r.r != 0 {
 		panic("readFrame r != 0")
 	}
+
 	if needRead > 0 {
 		payload = payload[:needRead]
-		r2 := r.availableBuf()
-		if _, err = io.ReadFull(r2, payload); err != nil {
+		// 新建一对新的r w指向尾部的内存区域
+		right := r.availableBuf()
+		if _, err = io.ReadFull(right, payload); err != nil {
 			return f, err
 		}
+
+		// right 也有可能超读, 直接加上payload的长度，会把超读的数据给丢了
+		r.w += right.w
 	}
+	r.r += int(h.payloadLen)
 
 	f.payload = r.bytes()[:h.payloadLen]
 	f.frameHeader = h
@@ -94,7 +101,6 @@ func readFrame(r *fixedReader) (f frame, err error) {
 		mask(f.payload, f.maskValue[:])
 	}
 
-	r.r, r.w = 0, 0
 	return f, nil
 }
 

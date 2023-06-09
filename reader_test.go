@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -22,7 +23,7 @@ func splitString(s string, chunkSize int) []string {
 	return chunks
 }
 
-func Test_Reader(t *testing.T) {
+func Test_Reader_Small(t *testing.T) {
 	var out bytes.Buffer
 
 	tmp := append([]byte(nil), testTextMessage64kb...)
@@ -44,10 +45,56 @@ func Test_Reader(t *testing.T) {
 	assert.Equal(t, f.payload, testTextMessage64kb)
 }
 
-func Test_Reader2(t *testing.T) {
+func Test_Reader_WriteMulti_ReadOne(t *testing.T) {
 	var out bytes.Buffer
 
-	for i := 1031; i < 1024*10; i++ {
+	for i := 1024 * 63; i <= 1024*63+1; i++ {
+		need := make([]byte, 0, i)
+		got := make([]byte, 0, i)
+		for j := 0; j < i; j++ {
+			need = append(need, byte(j))
+			got = append(got, byte(j))
+		}
+
+		for j := 0; j < 1; j++ {
+			err := writeMessgae(&out, Text, need, true)
+			assert.NoError(t, err)
+			err = writeMessgae(&out, Text, need, true)
+			assert.NoError(t, err)
+		}
+		fmt.Printf("i = %d, need: len(%d), write.size:%d\n", i, len(need), out.Len())
+
+		b := getBytes(1024 + maxFrameHeaderSize)
+		r := newBuffer(&out, b)
+		for j := 0; j < 2; j++ {
+
+			f, err := readFrame(r)
+			assert.NoError(t, err)
+
+			assert.NoError(t, err)
+			// TODO
+			if j == 0 {
+				continue
+			}
+			if !bytes.Equal(f.payload, got) {
+				t.Fatalf("bad test index:%d\n", i)
+				return
+			}
+			// assert.Equal(t, f.payload, got, fmt.Sprintf("index:%d", i))
+			if err != nil {
+				return
+			}
+		}
+		putBytes(b)
+		out.Reset()
+	}
+}
+
+// 测试只写一次数据包，但是分多次读取
+func Test_Reader_WriteOne_ReadMulti(t *testing.T) {
+	var out bytes.Buffer
+
+	for i := 1031; i <= 1024*64; i++ {
 		need := make([]byte, 0, i)
 		got := make([]byte, 0, i)
 		for j := 0; j < i; j++ {
@@ -63,6 +110,9 @@ func Test_Reader2(t *testing.T) {
 
 		f, err := readFrame(r)
 		assert.NoError(t, err)
+		if err != nil {
+			return
+		}
 		putBytes(b)
 		out.Reset()
 
@@ -86,4 +136,91 @@ func Test_Reset(t *testing.T) {
 	r.reset(getBytes(1024*2 + maxFrameHeaderSize))
 	assert.Equal(t, r.bytes()[:2], []byte("34"))
 	assert.Equal(t, r.free()[:2], []byte{0, 0})
+}
+
+func Test_Reader_WriteMulti_ReadOne_64512(t *testing.T) {
+	var out bytes.Buffer
+
+	for i := 64512; i <= 64512; i++ {
+		need := make([]byte, 0, i)
+		got := make([]byte, 0, i)
+		for j := 0; j < i; j++ {
+			need = append(need, byte(j))
+			got = append(got, byte(j))
+		}
+
+		for j := 0; j < 1; j++ {
+			err := writeMessgae(&out, Text, need, true)
+			assert.NoError(t, err)
+			err = writeMessgae(&out, Text, need, true)
+			assert.NoError(t, err)
+		}
+		fmt.Printf("i = %d, need: len(%d), write.size:%d\n", i, len(need), out.Len())
+
+		b := getBytes(1024 + maxFrameHeaderSize)
+		r := newBuffer(&out, b)
+		for j := 0; j < 2; j++ {
+
+			f, err := readFrame(r)
+			assert.NoError(t, err)
+
+			assert.NoError(t, err)
+			// TODO
+			if j == 0 {
+				continue
+			}
+			if !bytes.Equal(f.payload, got) {
+				t.Fatalf("bad test index:%d\n", i)
+				return
+			}
+			// assert.Equal(t, f.payload, got, fmt.Sprintf("index:%d", i))
+			if err != nil {
+				return
+			}
+		}
+		putBytes(b)
+		out.Reset()
+	}
+}
+
+func Test_Reader_WriteMulti_ReadOne_65536(t *testing.T) {
+	var out bytes.Buffer
+
+	for i := 65536; i <= 64512; i++ {
+		need := make([]byte, 0, i)
+		got := make([]byte, 0, i)
+		for j := 0; j < i; j++ {
+			need = append(need, byte(j))
+			got = append(got, byte(j))
+		}
+
+		for j := 0; j < 1; j++ {
+			err := writeMessgae(&out, Text, need, true)
+			assert.NoError(t, err)
+			err = writeMessgae(&out, Text, need, true)
+			assert.NoError(t, err)
+		}
+		fmt.Printf("i = %d, need: len(%d), write.size:%d\n", i, len(need), out.Len())
+
+		b := getBytes(1024 + maxFrameHeaderSize)
+		r := newBuffer(&out, b)
+		for j := 0; j < 2; j++ {
+
+			f, err := readFrame(r)
+			if err != io.EOF {
+				assert.NoError(t, err)
+			}
+
+			if !bytes.Equal(f.payload, got) {
+				t.Fatalf("bad test index:%d\n", i)
+				return
+			}
+			// assert.Equal(t, f.payload, got, fmt.Sprintf("index:%d", i))
+			if err != nil {
+				return
+			}
+		}
+		putBytes(b)
+		out.Reset()
+	}
 }

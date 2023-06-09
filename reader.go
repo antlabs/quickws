@@ -10,12 +10,10 @@ var errNegativeRead = errors.New("bufio: reader returned negative count from Rea
 // 固定大小的fixedReader, 所有的内存都是提前分配好的
 // 标准库的bufio.Reader不能传递一个固定大小的buf, 导致控制力度会差点
 type fixedReader struct {
-	buf          []byte
-	rd           io.Reader // reader provided by the client
-	r, w         int       // buf read and write positions
-	err          error
-	lastByte     int // last byte read for UnreadByte; -1 means invalid
-	lastRuneSize int // size of last rune read for UnreadRune; -1 means invalid
+	buf  []byte
+	rd   io.Reader // reader provided by the client
+	r, w int       // buf read and write positions
+	err  error
 }
 
 // newBuffer returns a new Buffer whose buffer has the specified size.
@@ -39,7 +37,7 @@ func (b *fixedReader) reset(buf []byte) {
 	}
 
 	copy(buf, b.buf[b.r:b.w])
-	b.w = b.w - b.r
+	b.w -= b.r
 	b.r = 0
 	b.buf = buf
 }
@@ -68,7 +66,13 @@ func (b *fixedReader) available() int64 {
 
 func (b *fixedReader) Buffered() int { return b.w - b.r }
 
+// 这和一般read接口中不一样
+// 传入的p 一定会满足这个大小
 func (b *fixedReader) Read(p []byte) (n int, err error) {
+	if cap(b.buf) < cap(p) {
+		panic("fixedReader.Reader buf size is too small: cap(b.buf) < cap(p)")
+	}
+
 	n = len(p)
 	if n == 0 {
 		if b.Buffered() > 0 {
@@ -76,43 +80,33 @@ func (b *fixedReader) Read(p []byte) (n int, err error) {
 		}
 		return 0, b.readErr()
 	}
-	if b.r == b.w {
-		if b.err != nil {
-			return 0, b.readErr()
-		}
-		if len(p) >= len(b.buf) {
-			// Large read, empty buffer.
-			// Read directly into p to avoid copy.
-			n, b.err = b.rd.Read(p)
-			if n < 0 {
+
+	var n1 int
+	for {
+
+		if b.r == b.w || len(b.buf[b.r:b.w]) < len(p) {
+			if b.err != nil {
+				return 0, b.readErr()
+			}
+			if b.r == b.w {
+				b.r = 0
+				b.w = 0
+			}
+			n1, b.err = b.rd.Read(b.buf[b.w:])
+			if n1 < 0 {
 				panic(errNegativeRead)
 			}
-			if n > 0 {
-				b.lastByte = int(p[n-1])
-				b.lastRuneSize = -1
+			if n1 == 0 {
+				return 0, b.readErr()
 			}
-			return n, b.readErr()
+			b.w += n1
 		}
-		// One read.
-		// Do not use b.fill, which will loop.
-		b.r = 0
-		b.w = 0
-		n, b.err = b.rd.Read(b.buf)
-		if n < 0 {
-			panic(errNegativeRead)
-		}
-		if n == 0 {
-			return 0, b.readErr()
-		}
-		b.w += n
-	}
 
-	// copy as much as we can
-	// Note: if the slice panics here, it is probably because
-	// the underlying reader returned a bad count. See issue 49795.
-	n = copy(p, b.buf[b.r:b.w])
-	b.r += n
-	b.lastByte = int(b.buf[b.r-1])
-	b.lastRuneSize = -1
-	return n, nil
+		if len(b.buf[b.r:b.w]) < len(p) {
+			continue
+		}
+		n1 = copy(p, b.buf[b.r:b.w])
+		b.r += n1
+		return n, nil
+	}
 }

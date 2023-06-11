@@ -28,27 +28,28 @@ func init() {
 	}
 }
 
-func getBytes(n int) []byte {
+func getBytes(n int) (rv *[]byte) {
 	if n <= maxFrameHeaderSize {
-		return pools[0].Get().([]byte)
+		return pools[0].Get().(*[]byte)
 	}
 
 	index := selectIndex(n - maxFrameHeaderSize - 1)
 	if index >= len(pools) {
-		return make([]byte, n+maxFrameHeaderSize)
+		rv := make([]byte, n+maxFrameHeaderSize)
+		return &rv
 	}
 
-	return *pools[index].Get().(*[]byte)
+	return pools[index].Get().(*[]byte)
 }
 
-func putBytes(bytes []byte) {
-	if cap(bytes) < maxFrameHeaderSize {
+func putBytes(bytes *[]byte) {
+	if cap(*bytes) < maxFrameHeaderSize {
 		panic("putBytes: bytes is too small")
 	}
-	newLen := cap(bytes) - maxFrameHeaderSize - 1
+	newLen := cap(*bytes) - maxFrameHeaderSize - 1
 	index := selectIndex(newLen)
 	if index >= len(pools) {
 		return
 	}
-	pools[index].Put(&bytes)
+	pools[index].Put(bytes)
 }

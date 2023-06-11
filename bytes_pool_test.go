@@ -2,6 +2,7 @@ package quickws
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -28,5 +29,15 @@ func Test_Index(t *testing.T) {
 		i2 -= (maxFrameHeaderSize + 1)
 		index := selectIndex(i2)
 		assert.Equal(t, index, 2)
+	}
+}
+
+func Test_GetBytes_Address(t *testing.T) {
+	var m map[unsafe.Pointer]bool
+	for i := 0; i < 10; i++ {
+		p := getBytes(1)
+		if m[unsafe.Pointer(p)] {
+			t.Fatal("duplicate pointer")
+		}
 	}
 }

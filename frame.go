@@ -15,6 +15,7 @@
 package quickws
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -60,13 +61,14 @@ func readFrame(r *fixedReader) (f frame, err error) {
 	readUnhandle := int64(r.w - r.r)
 	if h.payloadLen-readUnhandle > r.available() {
 		// 取得旧的buf
-		oldBuf := r.bytes()
+		oldBuf := r.ptr()
 		// 获取新的buf
 		newBuf := getBytes(int(h.payloadLen) + maxFrameHeaderSize)
 		// 重置缓存区
 		r.reset(newBuf)
 		// 将旧的buf放回池子里
 		putBytes(oldBuf)
+
 	}
 
 	// 返回可写的缓存区, 把已经读取的数据去掉，这里是把frame header的数据去掉
@@ -226,6 +228,9 @@ func writeMessgae(w io.Writer, op Opcode, writeBuf []byte, isClient bool) (err e
 	f.opcode = op
 	f.payload = writeBuf
 	f.payloadLen = int64(len(writeBuf))
+	defer func() {
+		f.payload = nil
+	}()
 	if isClient {
 		f.mask = true
 		newMask(f.maskValue[:])
@@ -234,14 +239,59 @@ func writeMessgae(w io.Writer, op Opcode, writeBuf []byte, isClient bool) (err e
 	return writeFrame(w, f)
 }
 
+// func writeFrame(w io.Writer, f frame) (err error) {
+// 	var tmpWriter fixedWriter
+// 	tmpWriter.buf = getBytes(len(f.payload) + maxFrameHeaderSize)
+
+// 	var ws io.Writer = &tmpWriter
+
+// 	defer func() {
+// 		putBytes(tmpWriter.buf)
+// 	}()
+
+// 	if err = writeHeader(ws, f.frameHeader); err != nil {
+// 		return
+// 	}
+
+// 	wIndex := tmpWriter.w
+// 	_, err = ws.Write(f.payload)
+// 	if err != nil {
+// 		return
+// 	}
+
+// 	if f.mask {
+// 		mask(tmpWriter.buf[wIndex:tmpWriter.w], f.maskValue[:])
+// 	}
+
+// 	_, err = w.Write(tmpWriter.bytes())
+// 	return err
+// }
+
 func writeFrame(w io.Writer, f frame) (err error) {
-	if err = writeHeader(w, f.frameHeader); err != nil {
+	buf := getBytes(len(f.payload) + maxFrameHeaderSize)
+
+	// fmt.Printf("writeFrame getBytes buf = %p\n", buf)
+	// var ws io.Writer = bytes.NewBuffer(nil)
+	var ws io.Writer = bytes.NewBuffer((*buf)[0:0])
+
+	defer func() {
+		putBytes(buf)
+	}()
+	if err = writeHeader(ws, f.frameHeader); err != nil {
+		return
+	}
+
+	tmpWriter := ws.(*bytes.Buffer)
+	wIndex := tmpWriter.Len()
+	_, err = ws.Write(f.payload)
+	if err != nil {
 		return
 	}
 	if f.mask {
-		mask(f.payload, f.maskValue[:])
-		defer mask(f.payload, f.maskValue[:])
+		mask(tmpWriter.Bytes()[wIndex:], f.maskValue[:])
 	}
-	_, err = w.Write(f.payload)
-	return
+
+	// fmt.Printf("writeFrame %#v\n", tmpWriter.Bytes())
+	_, err = w.Write(tmpWriter.Bytes())
+	return err
 }

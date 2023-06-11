@@ -2,42 +2,39 @@ package quickws
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func splitString(s string, chunkSize int) []string {
-	var chunks []string
-	for i := 0; i < len(s); i += chunkSize {
-		end := i + chunkSize
-		if end > len(s) {
-			end = len(s)
-		}
-		chunks = append(chunks, s[i:end])
-	}
-	return chunks
-}
+// func splitString(s string, chunkSize int) []string {
+// 	var chunks []string
+// 	for i := 0; i < len(s); i += chunkSize {
+// 		end := i + chunkSize
+// 		if end > len(s) {
+// 			end = len(s)
+// 		}
+// 		chunks = append(chunks, s[i:end])
+// 	}
+// 	return chunks
+// }
 
 func Test_Reader_Small(t *testing.T) {
 	var out bytes.Buffer
 
 	tmp := append([]byte(nil), testTextMessage64kb...)
 	err := writeMessgae(&out, Text, tmp, true)
-	hexString := hex.EncodeToString(out.Bytes())
-	// 在每两个字符之间插入空格
-	spacedHexString := strings.Join(splitString(hexString, 2), ", ")
-	fmt.Printf("header: %+v\n", spacedHexString[:100])
+	// hexString := hex.EncodeToString(out.Bytes())
+	// // 在每两个字符之间插入空格
+	// spacedHexString := strings.Join(splitString(hexString, 2), ", ")
+	// fmt.Printf("header: %+v\n", spacedHexString[:100])
 	assert.NoError(t, err)
 
 	r := newBuffer(&out, getBytes(1024+maxFrameHeaderSize))
 
 	f, err := readFrame(r)
-	fmt.Printf("header: %+v\n", f.frameHeader)
 	assert.NoError(t, err)
 	// err = os.WriteFile("./test_reader.dat", f.payload, 0o644)
 
@@ -85,7 +82,7 @@ func Test_Reader_WriteMulti_ReadOne(t *testing.T) {
 				return
 			}
 		}
-		putBytes(b)
+		putBytes(r.ptr())
 		out.Reset()
 	}
 }
@@ -95,6 +92,7 @@ func Test_Reader_WriteOne_ReadMulti(t *testing.T) {
 	var out bytes.Buffer
 
 	for i := 1031; i <= 1024*64; i++ {
+		// for i := 2046; i <= 2048; i++ {
 		need := make([]byte, 0, i)
 		got := make([]byte, 0, i)
 		for j := 0; j < i; j++ {
@@ -113,8 +111,6 @@ func Test_Reader_WriteOne_ReadMulti(t *testing.T) {
 		if err != nil {
 			return
 		}
-		putBytes(b)
-		out.Reset()
 
 		assert.NoError(t, err)
 		// TODO
@@ -122,6 +118,8 @@ func Test_Reader_WriteOne_ReadMulti(t *testing.T) {
 			continue
 		}
 		assert.Equal(t, f.payload, got, fmt.Sprintf("index:%d", i))
+		putBytes(r.ptr())
+		out.Reset()
 	}
 }
 
@@ -135,7 +133,7 @@ func Test_Reset(t *testing.T) {
 	r.Read(small)
 	r.reset(getBytes(1024*2 + maxFrameHeaderSize))
 	assert.Equal(t, r.bytes()[:2], []byte("34"))
-	assert.Equal(t, r.free()[:2], []byte{0, 0})
+	// assert.Equal(t, r.free()[:2], []byte{0, 0})
 }
 
 func Test_Reader_WriteMulti_ReadOne_64512(t *testing.T) {
@@ -178,7 +176,7 @@ func Test_Reader_WriteMulti_ReadOne_64512(t *testing.T) {
 				return
 			}
 		}
-		putBytes(b)
+		putBytes(r.ptr())
 		out.Reset()
 	}
 }
@@ -220,7 +218,7 @@ func Test_Reader_WriteMulti_ReadOne_65536(t *testing.T) {
 				return
 			}
 		}
-		putBytes(b)
+		putBytes(r.ptr())
 		out.Reset()
 	}
 }

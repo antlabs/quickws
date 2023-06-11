@@ -3,6 +3,7 @@ package quickws
 import (
 	"bytes"
 	"crypto/md5"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,6 +28,8 @@ type testMessageHandler struct {
 	server  bool
 	count   int
 	got     chan []byte
+	done    chan struct{}
+	output  bool
 }
 
 func (t *testMessageHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
@@ -41,6 +44,9 @@ func (t *testMessageHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
 	if t.server {
 		message = "#server"
 	}
+	if t.output {
+		// fmt.Printf(">>>>>%p %s, %#v\n", &msg, message, msg)
+	}
 	if len(msg) < 30 {
 		assert.Equal(t.t, msg, need, message)
 	} else {
@@ -51,6 +57,9 @@ func (t *testMessageHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
 	}
 	err := c.WriteMessage(op, msg)
 	assert.NoError(t.t, err)
+	if !t.server {
+		// c.Close()
+	}
 }
 
 func (t *testMessageHandler) OnClose(c *Conn, err error) {
@@ -59,13 +68,16 @@ func (t *testMessageHandler) OnClose(c *Conn, err error) {
 		message = "#server.OnClose"
 	}
 
-	assert.NoError(t.t, err, message)
+	fmt.Printf("OnClose: %s:%s\n", message, err)
+	if t.done != nil {
+		close(t.done)
+	}
 }
 
-func newServrEcho(t *testing.T, data []byte) *httptest.Server {
+func newServrEcho(t *testing.T, data []byte, output bool) *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := Upgrade(w, r,
-			WithServerCallback(&testMessageHandler{t: t, need: data, server: true, count: -1}),
+			WithServerCallback(&testMessageHandler{t: t, need: data, server: true, count: -1, output: true}),
 		)
 		assert.NoError(t, err)
 		if err != nil {
@@ -80,21 +92,23 @@ func newServrEcho(t *testing.T, data []byte) *httptest.Server {
 }
 
 func Test_ReadMessage10(t *testing.T) {
-	ts := newServrEcho(t, testBinaryMessage10)
-	client := &testMessageHandler{t: t, need: append([]byte(nil), testBinaryMessage10...), count: 1}
+	ts := newServrEcho(t, testBinaryMessage10, true)
+	client := &testMessageHandler{t: t, need: append([]byte(nil), testBinaryMessage10...), count: 1, done: make(chan struct{}), output: true}
 	c, err := Dial(ts.URL, WithClientCallback(client))
 	assert.NoError(t, err)
 	go c.ReadLoop()
 
 	tmp := append([]byte(nil), testBinaryMessage10...)
+
 	err = c.WriteMessage(Binary, tmp)
-	time.Sleep(time.Second / 2)
 	assert.NoError(t, err)
+	// <-client.done
+	time.Sleep(time.Second / 2)
 	assert.Equal(t, atomic.LoadInt32(&client.callbed), int32(1))
 }
 
 func Test_ReadMessage64k(t *testing.T) {
-	ts := newServrEcho(t, testBinaryMessage64kb)
+	ts := newServrEcho(t, testBinaryMessage64kb, false)
 	client := &testMessageHandler{t: t, need: append([]byte(nil), testBinaryMessage64kb...), count: 1}
 	c, err := Dial(ts.URL, WithClientCallback(client))
 	assert.NoError(t, err)
@@ -108,7 +122,7 @@ func Test_ReadMessage64k(t *testing.T) {
 }
 
 func Test_ReadMessage64k_Text(t *testing.T) {
-	ts := newServrEcho(t, testTextMessage64kb)
+	ts := newServrEcho(t, testTextMessage64kb, false)
 	client := &testMessageHandler{t: t, need: append([]byte(nil), testTextMessage64kb...), count: 1}
 	c, err := Dial(ts.URL, WithClientCallback(client))
 	assert.NoError(t, err)

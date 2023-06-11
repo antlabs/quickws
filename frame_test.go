@@ -55,11 +55,10 @@ func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 	r := bytes.NewReader(haveMaskData)
 
 	buf := make([]byte, 512)
-	rr := newBuffer(r, buf)
+	rr := newBuffer(r, &buf)
 	f, err := readFrame(rr)
 	assert.NoError(t, err)
 
-	// fmt.Printf("opcode:%d", h.opcode)
 	assert.Equal(t, string(f.payload[:f.payloadLen]), "Hello")
 
 	var w bytes.Buffer

@@ -114,6 +114,7 @@ func (c *Conn) readLoop() {
 
 	// 默认最小1k + 15
 	fixedBuf := newBuffer(c.c, getBytes(1024+maxFrameHeaderSize))
+	defer fixedBuf.release()
 
 	var fragmentFrameBuf []byte
 	for {

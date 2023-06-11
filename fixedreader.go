@@ -11,17 +11,28 @@ var errNegativeRead = errors.New("bufio: reader returned negative count from Rea
 // 标准库的bufio.Reader不能传递一个固定大小的buf, 导致控制力度会差点
 type fixedReader struct {
 	buf  []byte
+	p    *[]byte
 	rd   io.Reader // reader provided by the client
 	r, w int       // buf read and write positions
 	err  error
 }
 
 // newBuffer returns a new Buffer whose buffer has the specified size.
-func newBuffer(r io.Reader, buf []byte) *fixedReader {
+func newBuffer(r io.Reader, buf *[]byte) *fixedReader {
 	return &fixedReader{
 		rd:  r,
-		buf: buf,
+		buf: *buf,
+		p:   buf,
 	}
+}
+
+func (b *fixedReader) release() error {
+	if b.p != nil {
+		putBytes(b.p)
+		b.buf = nil
+		b.p = nil
+	}
+	return nil
 }
 
 func (b *fixedReader) readErr() error {
@@ -31,15 +42,20 @@ func (b *fixedReader) readErr() error {
 }
 
 // 将缓存区重置为一个新的buf
-func (b *fixedReader) reset(buf []byte) {
-	if len(buf) < len(b.buf[b.r:b.w]) {
+func (b *fixedReader) reset(buf *[]byte) {
+	if len(*buf) < len(b.buf[b.r:b.w]) {
 		panic("new buf size is too small")
 	}
 
-	copy(buf, b.buf[b.r:b.w])
+	copy(*buf, b.buf[b.r:b.w])
 	b.w -= b.r
 	b.r = 0
-	b.buf = buf
+	b.p = buf
+	b.buf = *buf
+}
+
+func (b *fixedReader) ptr() *[]byte {
+	return b.p
 }
 
 func (b *fixedReader) bytes() []byte {
@@ -107,6 +123,7 @@ func (b *fixedReader) Read(p []byte) (n int, err error) {
 		}
 		n1 = copy(p, b.buf[b.r:b.w])
 		b.r += n1
+
 		return n, nil
 	}
 }

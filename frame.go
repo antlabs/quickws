@@ -15,7 +15,6 @@
 package quickws
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -239,49 +238,20 @@ func writeMessgae(w io.Writer, op Opcode, writeBuf []byte, isClient bool) (err e
 	return writeFrame(w, f)
 }
 
-// func writeFrame(w io.Writer, f frame) (err error) {
-// 	var tmpWriter fixedWriter
-// 	tmpWriter.buf = getBytes(len(f.payload) + maxFrameHeaderSize)
-
-// 	var ws io.Writer = &tmpWriter
-
-// 	defer func() {
-// 		putBytes(tmpWriter.buf)
-// 	}()
-
-// 	if err = writeHeader(ws, f.frameHeader); err != nil {
-// 		return
-// 	}
-
-// 	wIndex := tmpWriter.w
-// 	_, err = ws.Write(f.payload)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	if f.mask {
-// 		mask(tmpWriter.buf[wIndex:tmpWriter.w], f.maskValue[:])
-// 	}
-
-// 	_, err = w.Write(tmpWriter.bytes())
-// 	return err
-// }
-
 func writeFrame(w io.Writer, f frame) (err error) {
 	buf := getBytes(len(f.payload) + maxFrameHeaderSize)
 
-	// fmt.Printf("writeFrame getBytes buf = %p\n", buf)
-	// var ws io.Writer = bytes.NewBuffer(nil)
-	var ws io.Writer = bytes.NewBuffer((*buf)[0:0])
+	tmpWriter := fixedWriter{buf: *buf}
+	var ws io.Writer = &tmpWriter
 
 	defer func() {
+		tmpWriter.buf = nil
 		putBytes(buf)
 	}()
 	if err = writeHeader(ws, f.frameHeader); err != nil {
 		return
 	}
 
-	tmpWriter := ws.(*bytes.Buffer)
 	wIndex := tmpWriter.Len()
 	_, err = ws.Write(f.payload)
 	if err != nil {

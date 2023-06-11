@@ -16,6 +16,10 @@ func (fw *fixedWriter) Write(p []byte) (n int, err error) {
 	return n, nil
 }
 
-func (fw *fixedWriter) bytes() []byte {
+func (fw *fixedWriter) Len() int {
+	return fw.w
+}
+
+func (fw *fixedWriter) Bytes() []byte {
 	return fw.buf[:fw.w]
 }

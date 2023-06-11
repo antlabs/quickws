@@ -202,7 +202,7 @@ func (c *Conn) readLoop() {
 			}
 
 			c.Callback.OnMessage(c, f.opcode, f.payload)
-
+			fixedBuf.leftMove()
 		case Close, Ping, Pong:
 			//  对方发的控制消息太大
 			if f.payloadLen > maxControlFrameSize {

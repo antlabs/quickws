@@ -15,18 +15,21 @@
 package quickws
 
 import (
-	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
 
 var (
-	ErrNotFoundHijacker = errors.New("not found Hijacker")
-	strHeaderUpgrade    = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-	strHeaderExtensions = "Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n"
-	strCRLF             = "\r\n"
+	ErrNotFoundHijacker     = errors.New("not found Hijacker")
+	bytesHeaderUpgrade      = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n")
+	bytesHeaderExtensions   = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
+	bytesSecWebSocketAccept = []byte("Sec-WebSocket-Accept")
+	bytesCRLF               = []byte("\r\n")
+	bytesColon              = []byte(": ")
 )
 
 type ConnOption struct {
@@ -49,7 +52,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 		return nil, ErrNotFoundHijacker
 	}
 
-	conn, rw, err := hi.Hijack()
+	conn, _, err := hi.Hijack()
 	if err != nil {
 		return nil, err
 	}
@@ -60,29 +63,36 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 		conf.decompression = needDecompression(r.Header)
 	}
 
-	if err = writeResponse(r, rw.Writer, conf.config); err != nil {
+	buf := getBytes(1024)
+	defer putBytes(buf)
+
+	tmpWriter := bytes.NewBuffer((*buf)[:0])
+	if err = prepareWriteResponse(r, tmpWriter, conf.config); err != nil {
 		return
 	}
 
+	if _, err := conn.Write(tmpWriter.Bytes()); err != nil {
+		return nil, err
+	}
 	return newConn(conn, false, conf.config), nil
 }
 
-func writeHeaderKey(w *bufio.Writer, key string) (err error) {
-	if _, err = w.WriteString(key); err != nil {
+func writeHeaderKey(w io.Writer, key []byte) (err error) {
+	if _, err = w.Write(key); err != nil {
 		return
 	}
-	if _, err = w.WriteString(": "); err != nil {
+	if _, err = w.Write(bytesColon); err != nil {
 		return
 	}
 	return
 }
 
-func writeHeaderVal(w *bufio.Writer, val string) (err error) {
-	if _, err = w.WriteString(val); err != nil {
+func writeHeaderVal(w io.Writer, val []byte) (err error) {
+	if _, err = w.Write(val); err != nil {
 		return
 	}
 
-	if _, err = w.WriteString("\r\n"); err != nil {
+	if _, err = w.Write(bytesCRLF); err != nil {
 		return
 	}
 	return
@@ -90,34 +100,30 @@ func writeHeaderVal(w *bufio.Writer, val string) (err error) {
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
-func writeResponse(r *http.Request, w *bufio.Writer, cnf config) (err error) {
-	if _, err = w.WriteString(strHeaderUpgrade); err != nil {
+func prepareWriteResponse(r *http.Request, w io.Writer, cnf config) (err error) {
+	if _, err = w.Write(bytesHeaderUpgrade); err != nil {
 		return
 	}
 
 	// 写入Sec-WebSocket-Accept key
-	if err = writeHeaderKey(w, "Sec-WebSocket-Accept"); err != nil {
+	if err = writeHeaderKey(w, bytesSecWebSocketAccept); err != nil {
 		return
 	}
+	v := secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))
 	// 写入Sec-WebSocket-Accept vla
-	if err = writeHeaderVal(w, secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))); err != nil {
-		return
+	if err = writeHeaderVal(w, StringToBytes(v)); err != nil {
+		return err
 	}
+
 	// 给客户端回个信, 表示支持解压缩模式
 	if cnf.decompression {
-		if _, err = w.WriteString(strHeaderExtensions); err != nil {
+		if _, err = w.Write(bytesHeaderExtensions); err != nil {
 			return
 		}
 	}
 
-	if _, err = w.WriteString(strCRLF); err != nil {
-		return
-	}
-	// TODO 5小点, 处理子协议
-	if err = w.Flush(); err != nil {
-		return
-	}
-	return
+	_, err = w.Write(bytesCRLF)
+	return err
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.1

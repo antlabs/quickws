@@ -42,6 +42,10 @@ func StringToBytes(s string) (b []byte) {
 	return b
 }
 
+// func BytesToString(b []byte) string {
+// 	return *(*string)(unsafe.Pointer(&b))
+// }
+
 func newMask(mask []byte) {
 	rand.Read(mask)
 }

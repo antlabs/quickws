@@ -62,6 +62,16 @@ func (b *fixedReader) bytes() []byte {
 	return b.buf
 }
 
+// 左移缓存区
+func (b *fixedReader) leftMove() {
+	if b.r == 0 {
+		return
+	}
+	copy(b.buf, b.buf[b.r:b.w])
+	b.w -= b.r
+	b.r = 0
+}
+
 // 返回可写的缓存区
 func (b *fixedReader) free() []byte {
 	r := b.r

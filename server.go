@@ -64,9 +64,12 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 	}
 
 	buf := getBytes(1024)
-	defer putBytes(buf)
 
 	tmpWriter := bytes.NewBuffer((*buf)[:0])
+	defer func() {
+		putBytes(buf)
+		tmpWriter = nil
+	}()
 	if err = prepareWriteResponse(r, tmpWriter, conf.config); err != nil {
 		return
 	}

@@ -62,6 +62,10 @@ func (b *fixedReader) bytes() []byte {
 	return b.buf
 }
 
+func (b *fixedReader) remainingLen() int {
+	return len(b.buf) - b.w
+}
+
 // 左移缓存区
 func (b *fixedReader) leftMove() {
 	if b.r == 0 {

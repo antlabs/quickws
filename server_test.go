@@ -13,6 +13,90 @@
 // limitations under the License.
 package quickws
 
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	//"os"
+)
+
+type echoHandler struct{}
+
+func (e *echoHandler) OnOpen(c *Conn) {
+}
+
+func (e *echoHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
+	// if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+	// 	fmt.Println("write fail:", err)
+	// }
+	if err := c.WriteMessage(op, msg); err != nil {
+		fmt.Println("write fail:", err)
+	}
+}
+
+func (e *echoHandler) OnClose(c *Conn, err error) {
+}
+
+type echoClientHandler struct {
+	DefCallback
+	Count int
+}
+
+func (e *echoClientHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
+	e.Count++
+	if e.Count == 100 {
+		c.Close()
+	}
+	c.WriteMessage(op, msg)
+}
+
+func newProfileServrEcho(t *testing.T, data []byte) *httptest.Server {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := Upgrade(w, r, WithServerCallback(&echoHandler{}))
+		assert.NoError(t, err)
+		if err != nil {
+			return
+		}
+
+		c.ReadLoop()
+	}))
+
+	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
+	return ts
+}
+
+// 跑profile的echo服务
+func Test_ServerProfile(t *testing.T) {
+	payload := make([]byte, 1024)
+	for i := 0; i < len(payload); i++ {
+		payload[i] = byte(i)
+	}
+
+	maxGo := 10
+	ts := newProfileServrEcho(t, payload)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(maxGo)
+	for i := 0; i < maxGo; i++ {
+		go func() {
+			defer wg.Done()
+			c, err := Dial(ts.URL, WithClientCallback(&echoClientHandler{}))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			c.WriteMessage(Binary, payload)
+			c.ReadLoop()
+		}()
+	}
+}
+
 // func newServerDecompressAndCompression(t *testing.T, data []byte) *httptest.Server {
 // 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 // 		c, err := Upgrade(w, r, WithServerDecompressAndCompress())

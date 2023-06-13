@@ -2,3 +2,5 @@
 autobahn-testsuite
 autobahn-testsuite-darwin-arm64
 autobahn-testsuite-linux-amd64
+cpu.profile
+mem.profile

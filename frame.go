@@ -45,6 +45,9 @@ type frame struct {
 }
 
 func readFrame(r *fixedReader) (f frame, err error) {
+	if r.remainingLen() < maxFrameHeaderSize && r.w-r.r < maxFrameHeaderSize {
+		r.leftMove()
+	}
 	h, _, err := readHeader(r)
 	if err != nil {
 		return f, err
@@ -99,7 +102,9 @@ func readFrame(r *fixedReader) (f frame, err error) {
 	f.payload = r.bytes()[:h.payloadLen]
 	f.frameHeader = h
 	if h.mask {
-		mask(f.payload, f.maskValue[:])
+		key := binary.LittleEndian.Uint32(h.maskValue[:])
+		// mask(f.payload, f.maskValue[:])
+		mask(f.payload, key)
 	}
 
 	return f, nil
@@ -258,7 +263,8 @@ func writeFrame(w io.Writer, f frame) (err error) {
 		return
 	}
 	if f.mask {
-		mask(tmpWriter.Bytes()[wIndex:], f.maskValue[:])
+		key := binary.LittleEndian.Uint32(f.maskValue[:])
+		mask(tmpWriter.Bytes()[wIndex:], key)
 	}
 
 	// fmt.Printf("writeFrame %#v\n", tmpWriter.Bytes())

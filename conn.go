@@ -80,7 +80,7 @@ func (c *Conn) ReadLoop() {
 	c.readLoop()
 }
 
-func (c *Conn) readDataFromNet(fixedBuf *fixedReader) (f frame, err error) {
+func (c *Conn) readDataFromNet(fixedBuf *fixedReader, headArray *[maxFrameHeaderSize]byte) (f frame, err error) {
 	if c.readTimeout > 0 {
 		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
 		if err != nil {
@@ -88,7 +88,7 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedReader) (f frame, err error) {
 		}
 	}
 
-	f, err = readFrame(fixedBuf)
+	f, err = readFrame(fixedBuf, headArray)
 	if err != nil {
 		c.Callback.OnClose(c, err)
 		return
@@ -117,10 +117,11 @@ func (c *Conn) readLoop() {
 	defer fixedBuf.release()
 
 	var fragmentFrameBuf []byte
+	var headArray [maxFrameHeaderSize]byte
 	for {
 
 		// 从网络读取数据
-		f, err = c.readDataFromNet(fixedBuf)
+		f, err = c.readDataFromNet(fixedBuf, &headArray)
 		if err != nil {
 			return
 		}

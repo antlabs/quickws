@@ -132,10 +132,11 @@ func Benchmark_ReadMessage(b *testing.B) {
 
 func Benchmark_ReadFrame(b *testing.B) {
 	r := bytes.NewReader(noMaskData)
+	var headArray [maxFrameHeaderSize]byte
 	for i := 0; i < b.N; i++ {
 
 		r.Reset(noMaskData)
-		_, _, err := readHeader(r)
+		_, _, err := readHeader(r, &headArray)
 		if err != nil {
 			b.Fatal(err)
 		}

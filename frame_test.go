@@ -31,8 +31,9 @@ func Test_Frame_Read_Size(t *testing.T) {
 	var out bytes.Buffer
 	err := writeMessgae(&out, Text, nil, true)
 	assert.NoError(t, err)
+	var headArray [14]byte
 	outLen := out.Len()
-	_, size, err := readHeader(&out)
+	_, size, err := readHeader(&out, &headArray)
 	assert.NoError(t, err)
 	assert.Equal(t, size, outLen)
 	fmt.Printf("%d:%d\n", size, outLen)
@@ -41,7 +42,8 @@ func Test_Frame_Read_Size(t *testing.T) {
 func Test_Frame_Read_NoMask(t *testing.T) {
 	r := bytes.NewReader(noMaskData)
 
-	h, _, err := readHeader(r)
+	var headArray [14]byte
+	h, _, err := readHeader(r, &headArray)
 	assert.NoError(t, err)
 	all, err := io.ReadAll(r)
 	assert.NoError(t, err)
@@ -56,7 +58,8 @@ func Test_Frame_Mask_Read_And_Write(t *testing.T) {
 
 	buf := make([]byte, 512)
 	rr := newBuffer(r, &buf)
-	f, err := readFrame(rr)
+	var headArray [14]byte
+	f, err := readFrame(rr, &headArray)
 	assert.NoError(t, err)
 
 	assert.Equal(t, string(f.payload[:f.payloadLen]), "Hello")

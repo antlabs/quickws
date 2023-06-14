@@ -44,11 +44,11 @@ type frame struct {
 	payload []byte
 }
 
-func readFrame(r *fixedReader) (f frame, err error) {
+func readFrame(r *fixedReader, headArray *[maxFrameHeaderSize]byte) (f frame, err error) {
 	if r.remainingLen() < maxFrameHeaderSize && r.w-r.r < maxFrameHeaderSize {
 		r.leftMove()
 	}
-	h, _, err := readHeader(r)
+	h, _, err := readHeader(r, headArray)
 	if err != nil {
 		return f, err
 	}
@@ -110,9 +110,9 @@ func readFrame(r *fixedReader) (f frame, err error) {
 	return f, nil
 }
 
-func readHeader(r io.Reader) (h frameHeader, size int, err error) {
-	var headArray [maxFrameHeaderSize]byte
-	head := headArray[:2]
+func readHeader(r io.Reader, headArray *[maxFrameHeaderSize]byte) (h frameHeader, size int, err error) {
+	// var headArray [maxFrameHeaderSize]byte
+	head := (*headArray)[:2]
 
 	n, err := io.ReadFull(r, head)
 	if err != nil {

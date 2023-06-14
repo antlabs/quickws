@@ -34,7 +34,8 @@ func Test_Reader_Small(t *testing.T) {
 
 	r := newBuffer(&out, getBytes(1024+maxFrameHeaderSize))
 
-	f, err := readFrame(r)
+	var headArray [14]byte
+	f, err := readFrame(r, &headArray)
 	assert.NoError(t, err)
 	// err = os.WriteFile("./test_reader.dat", f.payload, 0o644)
 
@@ -63,9 +64,10 @@ func Test_Reader_WriteMulti_ReadOne(t *testing.T) {
 
 		b := getBytes(1024 + maxFrameHeaderSize)
 		r := newBuffer(&out, b)
+		var headArray [14]byte
 		for j := 0; j < 2; j++ {
 
-			f, err := readFrame(r)
+			f, err := readFrame(r, &headArray)
 			assert.NoError(t, err)
 
 			assert.NoError(t, err)
@@ -91,6 +93,7 @@ func Test_Reader_WriteMulti_ReadOne(t *testing.T) {
 func Test_Reader_WriteOne_ReadMulti(t *testing.T) {
 	var out bytes.Buffer
 
+	var headArray [14]byte
 	for i := 1031; i <= 1024*64; i++ {
 		// for i := 2046; i <= 2048; i++ {
 		need := make([]byte, 0, i)
@@ -106,7 +109,7 @@ func Test_Reader_WriteOne_ReadMulti(t *testing.T) {
 		b := getBytes(1024 + maxFrameHeaderSize)
 		r := newBuffer(&out, b)
 
-		f, err := readFrame(r)
+		f, err := readFrame(r, &headArray)
 		assert.NoError(t, err)
 		if err != nil {
 			return
@@ -157,9 +160,10 @@ func Test_Reader_WriteMulti_ReadOne_64512(t *testing.T) {
 
 		b := getBytes(1024 + maxFrameHeaderSize)
 		r := newBuffer(&out, b)
+		var headArray [14]byte
 		for j := 0; j < 2; j++ {
 
-			f, err := readFrame(r)
+			f, err := readFrame(r, &headArray)
 			assert.NoError(t, err)
 
 			assert.NoError(t, err)
@@ -184,6 +188,7 @@ func Test_Reader_WriteMulti_ReadOne_64512(t *testing.T) {
 func Test_Reader_WriteMulti_ReadOne_65536(t *testing.T) {
 	var out bytes.Buffer
 
+	var headArray [14]byte
 	for i := 65536; i <= 64512; i++ {
 		need := make([]byte, 0, i)
 		got := make([]byte, 0, i)
@@ -204,7 +209,7 @@ func Test_Reader_WriteMulti_ReadOne_65536(t *testing.T) {
 		r := newBuffer(&out, b)
 		for j := 0; j < 2; j++ {
 
-			f, err := readFrame(r)
+			f, err := readFrame(r, &headArray)
 			if err != io.EOF {
 				assert.NoError(t, err)
 			}

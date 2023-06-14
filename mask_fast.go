@@ -5,6 +5,7 @@ import (
 	"unsafe"
 )
 
+//go:nosplit
 func maskFast(payload []byte, key uint32) {
 	if len(payload) == 0 {
 		return

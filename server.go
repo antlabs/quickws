@@ -26,8 +26,8 @@ import (
 var (
 	ErrNotFoundHijacker     = errors.New("not found Hijacker")
 	bytesHeaderUpgrade      = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n")
-	bytesHeaderExtensions   = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
 	bytesSecWebSocketAccept = []byte("Sec-WebSocket-Accept")
+	bytesHeaderExtensions   = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
 	bytesCRLF               = []byte("\r\n")
 	bytesColon              = []byte(": ")
 )
@@ -63,11 +63,11 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 		conf.decompression = needDecompression(r.Header)
 	}
 
-	buf := getBytes(1024)
+	buf := getUpgradeRespBytes()
 
 	tmpWriter := bytes.NewBuffer((*buf)[:0])
 	defer func() {
-		putBytes(buf)
+		putUpgradeRespBytes(buf)
 		tmpWriter = nil
 	}()
 	if err = prepareWriteResponse(r, tmpWriter, conf.config); err != nil {

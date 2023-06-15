@@ -95,6 +95,27 @@ type testConn struct {
 	buf *bytes.Buffer
 }
 
+func Benchmark_WriteFrame(b *testing.B) {
+	var buf bytes.Buffer
+	payload := make([]byte, 1024)
+	for i := range payload {
+		payload[i] = 1
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		//
+		var f frame
+		f.fin = true
+
+		f.opcode = Binary
+		f.payload = buf.Bytes()
+		f.payloadLen = int64(buf.Len())
+		writeFrame(&buf, f)
+		buf.Reset()
+	}
+}
+
 func Benchmark_WriteMessage(b *testing.B) {
 	var c Conn
 	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))

@@ -112,7 +112,7 @@ func (c *Conn) readLoop() {
 	var err error
 	var op Opcode
 
-	// 默认最小1k + 15
+	// 默认最小1k + 14
 	fixedBuf := newBuffer(c.c, getBytes(1024+maxFrameHeaderSize))
 	defer fixedBuf.release()
 

@@ -16,6 +16,13 @@ func selectIndex(n int) int {
 
 var pools = make([]sync.Pool, 0, maxIndex)
 
+var upgradeRespPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, 256)
+		return &buf
+	},
+}
+
 func init() {
 	for i := 1; i <= maxIndex; i++ {
 		j := i
@@ -52,4 +59,12 @@ func putBytes(bytes *[]byte) {
 		return
 	}
 	pools[index].Put(bytes)
+}
+
+func getUpgradeRespBytes() *[]byte {
+	return upgradeRespPool.Get().(*[]byte)
+}
+
+func putUpgradeRespBytes(bytes *[]byte) {
+	upgradeRespPool.Put(bytes)
 }

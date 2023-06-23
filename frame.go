@@ -19,6 +19,8 @@ import (
 	"errors"
 	"io"
 	"math"
+
+	"github.com/antlabs/wsutil/mask"
 )
 
 const (
@@ -104,7 +106,7 @@ func readFrame(r *fixedReader, headArray *[maxFrameHeaderSize]byte) (f frame, er
 	if h.mask {
 		key := binary.LittleEndian.Uint32(h.maskValue[:])
 		// mask(f.payload, f.maskValue[:])
-		mask(f.payload, key)
+		mask.Mask(f.payload, key)
 	}
 
 	return f, nil
@@ -264,7 +266,7 @@ func writeFrame(w io.Writer, f frame) (err error) {
 	}
 	if f.mask {
 		key := binary.LittleEndian.Uint32(f.maskValue[:])
-		mask(tmpWriter.Bytes()[wIndex:], key)
+		mask.Mask(tmpWriter.Bytes()[wIndex:], key)
 	}
 
 	// fmt.Printf("writeFrame %#v\n", tmpWriter.Bytes())

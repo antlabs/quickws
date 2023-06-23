@@ -85,6 +85,7 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedReader, headArray *[maxFrameHeader
 		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
 		if err != nil {
 			c.Callback.OnClose(c, err)
+			return
 		}
 	}
 

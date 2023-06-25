@@ -119,6 +119,7 @@ func (c *Conn) readLoop() error {
 
 	var fragmentFrameBuf []byte
 	var headArray [maxFrameHeaderSize]byte
+
 	for {
 
 		// 从网络读取数据
@@ -160,7 +161,7 @@ func (c *Conn) readLoop() error {
 					}
 
 					c.Callback.OnMessage(c, fragmentFrameHeader.opcode, fragmentFrameBuf)
-					fragmentFrameHeader = nil
+					fragmentFrameBuf = fragmentFrameBuf[0:0]
 					fragmentFrameHeader = nil
 				}
 				continue
@@ -176,7 +177,7 @@ func (c *Conn) readLoop() error {
 			if !f.fin {
 				prevFrame := f.frameHeader
 				// 第一次分段
-				if fragmentFrameBuf == nil {
+				if len(fragmentFrameBuf) == 0 {
 					fragmentFrameBuf = append(fragmentFrameBuf, f.payload...)
 					f.payload = nil
 				}

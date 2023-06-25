@@ -74,10 +74,10 @@ func decode(payload []byte) ([]byte, error) {
 	return o.Bytes(), nil
 }
 
-func (c *Conn) ReadLoop() {
+func (c *Conn) ReadLoop() error {
 	c.OnOpen(c)
 
-	c.readLoop()
+	return c.readLoop()
 }
 
 func (c *Conn) readDataFromNet(fixedBuf *fixedReader, headArray *[maxFrameHeaderSize]byte) (f frame, err error) {
@@ -104,7 +104,7 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedReader, headArray *[maxFrameHeader
 }
 
 // 读取websocket frame的循环
-func (c *Conn) readLoop() {
+func (c *Conn) readLoop() error {
 	var f frame
 	var fragmentFrameHeader *frameHeader
 
@@ -124,7 +124,7 @@ func (c *Conn) readLoop() {
 		// 从网络读取数据
 		f, err = c.readDataFromNet(fixedBuf, &headArray)
 		if err != nil {
-			return
+			return err
 		}
 
 		op = f.opcode
@@ -135,8 +135,7 @@ func (c *Conn) readLoop() {
 		// 检查rsv1 rsv2 rsv3
 		if f.rsv1 && c.failRsv1(op) || f.rsv2 || f.rsv3 {
 			err = fmt.Errorf("%w:rsv1(%t) rsv2(%t) rsv2(%t)", ErrRsv123, f.rsv1, f.rsv2, f.rsv3)
-			c.writeErrAndOnClose(ProtocolError, err)
-			return
+			return c.writeErrAndOnClose(ProtocolError, err)
 		}
 
 		if fragmentFrameHeader != nil && !f.opcode.isControl() {
@@ -149,7 +148,7 @@ func (c *Conn) readLoop() {
 					if fragmentFrameHeader.rsv1 && c.decompression {
 						tmpeBuf, err := decode(fragmentFrameBuf)
 						if err != nil {
-							return
+							return err
 						}
 						fragmentFrameBuf = tmpeBuf
 					}
@@ -157,16 +156,18 @@ func (c *Conn) readLoop() {
 					// TODO utf8.Valid 修改成流式解析
 					if fragmentFrameHeader.opcode == Text && !utf8.Valid(fragmentFrameBuf) {
 						c.Callback.OnClose(c, ErrTextNotUTF8)
-						return
+						return ErrTextNotUTF8
 					}
 
 					c.Callback.OnMessage(c, fragmentFrameHeader.opcode, fragmentFrameBuf)
+					fragmentFrameHeader = nil
+					fragmentFrameHeader = nil
 				}
 				continue
 			}
 
 			c.writeErrAndOnClose(ProtocolError, ErrFrameOpcode)
-			return
+			return ErrFrameOpcode
 		}
 
 		// 检查opcode
@@ -176,11 +177,8 @@ func (c *Conn) readLoop() {
 				prevFrame := f.frameHeader
 				// 第一次分段
 				if fragmentFrameBuf == nil {
-					fragmentFrameBuf = f.payload
+					fragmentFrameBuf = append(fragmentFrameBuf, f.payload...)
 					f.payload = nil
-
-					newBuf := getBytes(len(fixedBuf.bytes()))
-					fixedBuf.reset(newBuf)
 				}
 
 				// 让fragmentFrame的payload指向readBuf, readBuf 原引用直接丢弃
@@ -189,9 +187,10 @@ func (c *Conn) readLoop() {
 			}
 
 			if f.rsv1 && c.decompression {
+				// 不分段的解压缩
 				f.payload, err = decode(f.payload)
 				if err != nil {
-					return
+					return err
 				}
 			}
 
@@ -199,7 +198,7 @@ func (c *Conn) readLoop() {
 				if !utf8.Valid(f.payload) {
 					c.c.Close()
 					c.Callback.OnClose(c, ErrTextNotUTF8)
-					return
+					return ErrTextNotUTF8
 				}
 			}
 
@@ -208,43 +207,40 @@ func (c *Conn) readLoop() {
 			//  对方发的控制消息太大
 			if f.payloadLen > maxControlFrameSize {
 				c.writeErrAndOnClose(ProtocolError, ErrMaxControlFrameSize)
-				return
+				return ErrMaxControlFrameSize
 			}
 			// Close, Ping, Pong 不能分片
 			if !f.fin {
 				c.writeErrAndOnClose(ProtocolError, ErrNOTBeFragmented)
-				return
+				return ErrNOTBeFragmented
 			}
 
 			if f.opcode == Close {
 				if len(f.payload) == 0 {
-					c.writeErrAndOnClose(NormalClosure, ErrClosePayloadTooSmall)
-					return
+					return c.writeErrAndOnClose(NormalClosure, ErrClosePayloadTooSmall)
 				}
 
 				if len(f.payload) < 2 {
-					c.writeErrAndOnClose(ProtocolError, ErrClosePayloadTooSmall)
-					return
+					return c.writeErrAndOnClose(ProtocolError, ErrClosePayloadTooSmall)
 				}
 
 				if !utf8.Valid(f.payload[2:]) {
-					c.writeErrAndOnClose(ProtocolError, ErrTextNotUTF8)
-					return
+					return c.writeErrAndOnClose(ProtocolError, ErrTextNotUTF8)
 				}
 
 				code := binary.BigEndian.Uint16(f.payload)
 				if !validCode(code) {
-					c.writeErrAndOnClose(ProtocolError, ErrCloseValue)
-					return
+					return c.writeErrAndOnClose(ProtocolError, ErrCloseValue)
 				}
 
 				// 回敬一个close包
 				if err := c.WriteTimeout(Close, f.payload, 2*time.Second); err != nil {
-					return
+					return err
 				}
 
-				c.Callback.OnClose(c, bytesToCloseErrMsg(f.payload))
-				return
+				err = bytesToCloseErrMsg(f.payload)
+				c.Callback.OnClose(c, err)
+				return err
 			}
 
 			if f.opcode == Ping {
@@ -252,7 +248,7 @@ func (c *Conn) readLoop() {
 				if c.replyPing {
 					if err := c.WriteTimeout(Pong, f.payload, 2*time.Second); err != nil {
 						c.Callback.OnClose(c, err)
-						return
+						return err
 					}
 					c.Callback.OnMessage(c, f.opcode, f.payload)
 					continue
@@ -266,7 +262,7 @@ func (c *Conn) readLoop() {
 			c.Callback.OnMessage(c, f.opcode, nil)
 		default:
 			c.writeErrAndOnClose(ProtocolError, ErrOpcode)
-			return
+			return ErrOpcode
 		}
 
 	}

@@ -1,26 +1,27 @@
 {
-	"outdir": "./report/",
-	"servers": [
-		{
-			"agent": "non-tls",
-			"url": "ws://localhost:9000/connect",
-			"options": {
-				"version": 18
-			}
-		},
-		{
-			"agent": "tls",
-			"url": "wss://localhost:9001/connect",
-			"options": {
-				"version": 18
-			}
-		}
-	],
-	"cases": [
-		"*"
-	],
-	"exclude-cases": [
-		"1[1-4].*"
-	],
-	"exclude-agent-cases": {}
-}
+        "outdir": "./report/",
+        "servers": [
+                {
+                        "agent": "non-tls",
+                        "url": "ws://localhost:9001/autobahn",
+                        "options": {
+                                "version": 18
+                        }
+                },
+                {
+                        "agent": "tls",
+                        "url": "wss://localhost:9002/autobahn",
+                        "options": {
+                                "version": 18
+                        }
+                }
+        ],
+        "cases": [
+                "*"
+        ],
+        "exclude-cases": [
+                ""
+        ],
+        "exclude-agent-cases": {}
+}  
+

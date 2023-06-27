@@ -1,16 +1,26 @@
-//go:build tinywstest
-// +build tinywstest
+//go:build quickwstest
+// +build quickwstest
 
 package main
 
 import (
+	"crypto/tls"
+	_ "embed"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/antlabs/quickws"
 	//"os"
 )
+
+//go:embed public.crt
+var certPEMBlock []byte
+
+//go:embed privatekey.pem
+var keyPEMBlock []byte
 
 type echoHandler struct{}
 
@@ -46,7 +56,30 @@ func echo(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", echo)
+	mux := &http.ServeMux{}
+	mux.HandleFunc("/autobahn", echo)
 
-	http.ListenAndServe(":9001", nil)
+	rawTCP, err := net.Listen("tcp", "localhost:9001")
+	if err != nil {
+		fmt.Println("Listen fail:", err)
+		return
+	}
+
+	go func() {
+		log.Println("non-tls server exit:", http.Serve(rawTCP, mux))
+	}()
+
+	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+	if err != nil {
+		log.Fatalf("tls.X509KeyPair failed: %v", err)
+	}
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		InsecureSkipVerify: true,
+	}
+	lnTLS, err := tls.Listen("tcp", "localhost:9002", tlsConfig)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("tls server exit:", http.Serve(lnTLS, mux))
 }

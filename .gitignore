@@ -1,6 +1,8 @@
 *swp
 autobahn-testsuite
-autobahn-testsuite-darwin-arm64
-autobahn-testsuite-linux-amd64
+autobahn-client-testsuite-darwin-arm64
+autobahn-client-testsuite-linux-amd64
+autobahn-server-testsuite-darwin-arm64
+autobahn-server-testsuite-linux-amd64
 cpu.profile
 mem.profile

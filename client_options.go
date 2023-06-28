@@ -22,9 +22,17 @@ import (
 
 type OptionClient func(*DialOption)
 
+// 配置callback
 func WithClientCallback(cb Callback) OptionClient {
 	return func(o *DialOption) {
 		o.Callback = cb
+	}
+}
+
+// 仅仅配置OnMessae函数
+func WithClientOnMessageFunc(cb OnMessageFunc) OptionClient {
+	return func(o *DialOption) {
+		o.Callback = OnMessageFunc(cb)
 	}
 }
 

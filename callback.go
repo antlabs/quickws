@@ -29,3 +29,15 @@ func (defcallback *DefCallback) OnMessage(_ *Conn, _ Opcode, _ []byte) {
 
 func (defcallback *DefCallback) OnClose(_ *Conn, _ error) {
 }
+
+type OnMessageFunc func(*Conn, Opcode, []byte)
+
+func (o OnMessageFunc) OnOpen(_ *Conn) {
+}
+
+func (o OnMessageFunc) OnMessage(c *Conn, op Opcode, data []byte) {
+	o(c, op, data)
+}
+
+func (o OnMessageFunc) OnClose(_ *Conn, _ error) {
+}

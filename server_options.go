@@ -30,6 +30,13 @@ func WithServerCallback(cb Callback) OptionServer {
 	}
 }
 
+// 仅仅配置OnMessae函数
+func WithServerOnMessageFunc(cb func(*Conn, Opcode, []byte)) OptionClient {
+	return func(o *DialOption) {
+		o.Callback = OnMessageFunc(cb)
+	}
+}
+
 // 配置自动回应ping frame, 当收到ping， 回一个pong
 func WithServerReplyPing() OptionServer {
 	return func(o *ConnOption) {

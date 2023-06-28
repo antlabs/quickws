@@ -77,7 +77,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 	if _, err := conn.Write(tmpWriter.Bytes()); err != nil {
 		return nil, err
 	}
-	return newConn(conn, false, conf.config), nil
+	return newConn(conn, false, conf.config, nil), nil
 }
 
 func writeHeaderKey(w io.Writer, key []byte) (err error) {

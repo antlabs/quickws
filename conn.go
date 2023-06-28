@@ -34,10 +34,11 @@ type Conn struct {
 	c      net.Conn
 	client bool
 	config
+	fr *fixedReader
 }
 
-func newConn(c net.Conn, client bool, conf config) *Conn {
-	return &Conn{c: c, client: client, config: conf}
+func newConn(c net.Conn, client bool, conf config, fr *fixedReader) *Conn {
+	return &Conn{c: c, client: client, config: conf, fr: fr}
 }
 
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
@@ -113,8 +114,13 @@ func (c *Conn) readLoop() error {
 	var err error
 	var op Opcode
 
-	// 默认最小1k + 14
-	fixedBuf := newBuffer(c.c, getBytes(1024+maxFrameHeaderSize))
+	var fixedBuf *fixedReader
+	if c.fr != nil {
+		fixedBuf = c.fr
+	} else {
+		// 默认最小1k + 14
+		fixedBuf = newBuffer(c.c, getBytes(1024+maxFrameHeaderSize))
+	}
 	defer fixedBuf.release()
 
 	var fragmentFrameBuf []byte

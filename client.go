@@ -154,7 +154,8 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	}
 
 	begin := time.Now()
-	conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
+	// conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
+	conn, err := net.Dial("tcp", d.u.Host /* TODO 加端号*/)
 	if err != nil {
 		return nil, err
 	}
@@ -203,5 +204,18 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		return
 	}
 
-	return newConn(conn, true, d.config), nil
+	// 处理下已经在bufio里面的数据，后面都是直接操作net.Conn，所以需要取出bufio里面已读取的数据
+	var fr *fixedReader
+	if brw.Reader.Buffered() > 0 {
+		b, err := brw.Reader.Peek(brw.Reader.Buffered())
+		if err != nil {
+			return nil, err
+		}
+		b2 := getBytes(len(b))
+		copy(*b2, b)
+		fr = newBuffer(conn, b2)
+		fr.w = len(*b2)
+	}
+	// fmt.Println(brw.Reader.Buffered())
+	return newConn(conn, true, d.config, fr), nil
 }

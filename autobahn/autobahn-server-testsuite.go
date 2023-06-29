@@ -41,7 +41,8 @@ func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
 
 // echo测试服务
 func echo(w http.ResponseWriter, r *http.Request) {
-	c, err := quickws.Upgrade(w, r, quickws.WithServerReplyPing(),
+	c, err := quickws.Upgrade(w, r,
+		quickws.WithServerReplyPing(),
 		quickws.WithServerDecompression(),
 		quickws.WithServerIgnorePong(),
 		quickws.WithServerCallback(&echoHandler{}),

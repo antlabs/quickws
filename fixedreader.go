@@ -54,6 +54,11 @@ func (b *fixedReader) reset(buf *[]byte) {
 	b.buf = *buf
 }
 
+// 返回底层[]byte的长度
+func (b *fixedReader) Len() int {
+	return len(b.buf)
+}
+
 func (b *fixedReader) ptr() *[]byte {
 	return b.p
 }
@@ -62,8 +67,14 @@ func (b *fixedReader) bytes() []byte {
 	return b.buf
 }
 
-func (b *fixedReader) remainingLen() int {
-	return len(b.buf) - b.w
+// 返回剩余可写的缓存区大小
+func (b *fixedReader) writeCap() int {
+	return len(b.buf[b.w:])
+}
+
+// 返回剩余可用的缓存区大小
+func (b *fixedReader) available() int64 {
+	return int64(len(b.buf[b.w:]) + b.r)
 }
 
 // 左移缓存区
@@ -77,21 +88,12 @@ func (b *fixedReader) leftMove() {
 }
 
 // 返回可写的缓存区
-func (b *fixedReader) free() []byte {
-	r := b.r
-	copy(b.buf, b.buf[r:])
-	b.w -= r
-	b.r = 0
+func (b *fixedReader) writeCapBytes() []byte {
 	return b.buf[b.w:]
 }
 
-func (b *fixedReader) availableBuf() *fixedReader {
+func (b *fixedReader) cloneAvailable() *fixedReader {
 	return &fixedReader{rd: b.rd, buf: b.buf[b.w:]}
-}
-
-// 返回剩余可用的缓存区大小
-func (b *fixedReader) available() int64 {
-	return int64(len(b.buf[b.w:]) + b.r)
 }
 
 func (b *fixedReader) Buffered() int { return b.w - b.r }

@@ -11,8 +11,8 @@ import (
 // https://github.com/snapview/tokio-tungstenite/blob/master/examples/autobahn-client.rs
 
 const (
-	host = "ws://192.168.128.44:9003"
-	// host  = "ws://127.0.0.1:9003"
+	// host = "ws://192.168.128.44:9003"
+	host  = "ws://127.0.0.1:9003"
 	agent = "quickws"
 )
 
@@ -25,9 +25,9 @@ func (e *echoHandler) OnOpen(c *quickws.Conn) {
 }
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
-	// fmt.Println("OnMessage:", c, msg, op)
 	if op == quickws.Text || op == quickws.Binary {
-		if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+		// os.WriteFile("./debug.dat", msg, 0o644)
+		if err := c.WriteTimeout(op, msg, 1*time.Minute); err != nil {
 			fmt.Println("write fail:", err)
 		}
 	}
@@ -79,7 +79,11 @@ func getCaseCount() int {
 
 func runTest(caseNo int) {
 	done := make(chan struct{})
-	c, err := quickws.Dial(fmt.Sprintf("%s/runCase?case=%d&agent=%s", host, caseNo, agent), quickws.WithClientCallback(&echoHandler{done: done}))
+	c, err := quickws.Dial(fmt.Sprintf("%s/runCase?case=%d&agent=%s", host, caseNo, agent),
+		quickws.WithClientReplyPing(),
+		quickws.WithClientDecompression(),
+		quickws.WithClientCallback(&echoHandler{done: done}),
+	)
 	if err != nil {
 		fmt.Println("Dial fail:", err)
 		return

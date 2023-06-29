@@ -37,49 +37,49 @@ func WithClientOnMessageFunc(cb OnMessageFunc) OptionClient {
 }
 
 // 配置tls.config
-func WithTLSConfig(tls *tls.Config) OptionClient {
+func WithClientTLSConfig(tls *tls.Config) OptionClient {
 	return func(o *DialOption) {
 		o.tlsConfig = tls
 	}
 }
 
 // 配置http.Header
-func WithHTTPHeader(h http.Header) OptionClient {
+func WithClientHTTPHeader(h http.Header) OptionClient {
 	return func(o *DialOption) {
 		o.Header = h
 	}
 }
 
 // 配置握手时的timeout
-func WithDialTimeout(t time.Duration) OptionClient {
+func WithClientDialTimeout(t time.Duration) OptionClient {
 	return func(o *DialOption) {
 		o.dialTimeout = t
 	}
 }
 
 // 配置自动回应ping frame, 当收到ping， 回一个pong
-func WithReplyPing() OptionClient {
+func WithClientReplyPing() OptionClient {
 	return func(o *DialOption) {
 		o.replyPing = true
 	}
 }
 
 // 配置解压缩
-func WithDecompression() OptionClient {
+func WithClientDecompression() OptionClient {
 	return func(o *DialOption) {
 		o.decompression = true
 	}
 }
 
 // 配置压缩
-func WithCompression() OptionClient {
+func WithClientCompression() OptionClient {
 	return func(o *DialOption) {
 		o.compression = true
 	}
 }
 
 // 配置压缩和解压缩
-func WithDecompressAndCompress() OptionClient {
+func WithClientDecompressAndCompress() OptionClient {
 	return func(o *DialOption) {
 		o.compression = true
 		o.decompression = true

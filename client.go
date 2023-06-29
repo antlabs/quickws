@@ -211,10 +211,10 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		if err != nil {
 			return nil, err
 		}
-		b2 := getBytes(len(b))
+		b2 := getBytes(len(b) + maxFrameHeaderSize)
 		copy(*b2, b)
 		fr = newBuffer(conn, b2)
-		fr.w = len(*b2)
+		fr.w = len(b)
 	}
 	// fmt.Println(brw.Reader.Buffered())
 	return newConn(conn, true, d.config, fr), nil

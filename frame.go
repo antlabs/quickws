@@ -47,9 +47,15 @@ type frame struct {
 }
 
 func readFrame(r *fixedReader, headArray *[maxFrameHeaderSize]byte) (f frame, err error) {
-	if r.remainingLen() < maxFrameHeaderSize && r.w-r.r < maxFrameHeaderSize {
+	// 如果剩余可写缓存区放不下一个frame header, 就把数据往前移动
+	// 所有的的buf分配都是paydload + frame head 的长度, 挪完之后，肯定是能放下一个frame header的
+	if r.Len()-r.r < maxFrameHeaderSize {
 		r.leftMove()
+		if r.Len() < maxFrameHeaderSize {
+			panic("readFrame r.Len() < maxFrameHeaderSize")
+		}
 	}
+
 	h, _, err := readHeader(r, headArray)
 	if err != nil {
 		return f, err
@@ -63,49 +69,46 @@ func readFrame(r *fixedReader, headArray *[maxFrameHeaderSize]byte) (f frame, er
 
 	// 已读取未处理的数据
 	readUnhandle := int64(r.w - r.r)
+	// 情况 1，需要读的长度 > 剩余可用空间(未写的+已经被读取走的)
 	if h.payloadLen-readUnhandle > r.available() {
-		// 取得旧的buf
+		// 1.取得旧的buf
 		oldBuf := r.ptr()
-		// 获取新的buf
+		// 2.获取新的buf
 		newBuf := getBytes(int(h.payloadLen) + maxFrameHeaderSize)
-		// 重置缓存区
+		// 3.重置缓存区
 		r.reset(newBuf)
-		// 将旧的buf放回池子里
+		// 4.将旧的buf放回池子里
 		putBytes(oldBuf)
 
+		// 情况 2。 空间是够的，需要挪一挪, 把已经读过的覆盖掉
+	} else if h.payloadLen-readUnhandle > int64(r.writeCap()) {
+		r.leftMove()
 	}
 
-	// 返回可写的缓存区, 把已经读取的数据去掉，这里是把frame header的数据去掉
-	payload := r.free()
+	// 返回可写的缓存区
+	payload := r.writeCapBytes()
 	// 前面的reset已经保证了，buffer的大小是够的
-	needRead := 0
-	if h.payloadLen-readUnhandle > 0 {
-		// 还需要读取的数据等于 h.payloadLen - (h.w - h.r)
-		needRead = int(h.payloadLen - readUnhandle)
-	}
-
-	if r.r != 0 {
-		panic("readFrame r != 0")
-	}
+	needRead := h.payloadLen - readUnhandle
 
 	if needRead > 0 {
+		// payload是一块干净可写的空间，使用needRead框下范围
 		payload = payload[:needRead]
 		// 新建一对新的r w指向尾部的内存区域
-		right := r.availableBuf()
+		right := r.cloneAvailable()
 		if _, err = io.ReadFull(right, payload); err != nil {
 			return f, err
 		}
 
 		// right 也有可能超读, 直接加上payload的长度，会把超读的数据给丢了
+		// 为什么会发生超读呢，right持的buf 会 >= payload的长度
 		r.w += right.w
 	}
-	r.r += int(h.payloadLen)
 
-	f.payload = r.bytes()[:h.payloadLen]
+	f.payload = r.bytes()[r.r : r.r+int(h.payloadLen)]
 	f.frameHeader = h
+	r.r += int(h.payloadLen)
 	if h.mask {
 		key := binary.LittleEndian.Uint32(h.maskValue[:])
-		// mask(f.payload, f.maskValue[:])
 		mask.Mask(f.payload, key)
 	}
 

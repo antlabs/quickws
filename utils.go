@@ -100,7 +100,7 @@ func maybeCompressionDecompression(header http.Header) bool {
 		}
 		_, s := ext["server_no_context_takeover"]
 		_, c := ext["client_no_context_takeover"]
-		return s && c
+		return s || c
 	}
 
 	return false

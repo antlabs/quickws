@@ -21,6 +21,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/antlabs/wsutil/bytespool"
 )
 
 var (
@@ -63,11 +65,11 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 		conf.decompression = needDecompression(r.Header)
 	}
 
-	buf := getUpgradeRespBytes()
+	buf := bytespool.GetUpgradeRespBytes()
 
 	tmpWriter := bytes.NewBuffer((*buf)[:0])
 	defer func() {
-		putUpgradeRespBytes(buf)
+		bytespool.PutUpgradeRespBytes(buf)
 		tmpWriter = nil
 	}()
 	if err = prepareWriteResponse(r, tmpWriter, conf.config); err != nil {

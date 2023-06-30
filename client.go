@@ -23,6 +23,10 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/antlabs/wsutil/bytespool"
+	"github.com/antlabs/wsutil/enum"
+	"github.com/antlabs/wsutil/fixedreader"
 )
 
 var (
@@ -205,16 +209,16 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	}
 
 	// 处理下已经在bufio里面的数据，后面都是直接操作net.Conn，所以需要取出bufio里面已读取的数据
-	var fr *fixedReader
+	var fr *fixedreader.FixedReader
 	if brw.Reader.Buffered() > 0 {
 		b, err := brw.Reader.Peek(brw.Reader.Buffered())
 		if err != nil {
 			return nil, err
 		}
-		b2 := getBytes(len(b) + maxFrameHeaderSize)
+		b2 := bytespool.GetBytes(len(b) + enum.MaxFrameHeaderSize)
 		copy(*b2, b)
-		fr = newBuffer(conn, b2)
-		fr.w = len(b)
+		fr = fixedreader.NewFixedReader(conn, b2)
+		fr.W = len(b)
 	}
 	// fmt.Println(brw.Reader.Buffered())
 	return newConn(conn, true, d.config, fr), nil

@@ -11,8 +11,8 @@ import (
 // https://github.com/snapview/tokio-tungstenite/blob/master/examples/autobahn-client.rs
 
 const (
-	// host = "ws://192.168.128.44:9003"
-	host  = "ws://127.0.0.1:9003"
+	host = "ws://192.168.128.44:9003"
+	// host  = "ws://127.0.0.1:9003"
 	agent = "quickws"
 )
 
@@ -25,6 +25,7 @@ func (e *echoHandler) OnOpen(c *quickws.Conn) {
 }
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
+	fmt.Println("OnMessage:", c, op, msg)
 	if op == quickws.Text || op == quickws.Binary {
 		// os.WriteFile("./debug.dat", msg, 0o644)
 		if err := c.WriteTimeout(op, msg, 1*time.Minute); err != nil {
@@ -81,7 +82,8 @@ func runTest(caseNo int) {
 	done := make(chan struct{})
 	c, err := quickws.Dial(fmt.Sprintf("%s/runCase?case=%d&agent=%s", host, caseNo, agent),
 		quickws.WithClientReplyPing(),
-		quickws.WithClientDecompression(),
+		// quickws.WithClientCompression(),
+		quickws.WithClientDecompressAndCompress(),
 		quickws.WithClientCallback(&echoHandler{done: done}),
 	)
 	if err != nil {

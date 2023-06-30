@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/antlabs/wsutil/opcode"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,7 @@ type testMessageHandler struct {
 	output  bool
 }
 
-func (t *testMessageHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
+func (t *testMessageHandler) OnMessage(c *Conn, op opcode.Opcode, msg []byte) {
 	need := append([]byte(nil), t.need...)
 	atomic.StoreInt32(&t.callbed, 1)
 	if t.count == 0 {

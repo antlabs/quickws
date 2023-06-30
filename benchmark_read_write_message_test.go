@@ -18,7 +18,13 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/antlabs/wsutil/enum"
+	"github.com/antlabs/wsutil/frame"
+	"github.com/antlabs/wsutil/opcode"
 )
+
+var noMaskData = []byte{0x81, 0x05, 0x48, 0x65, 0x6c, 0x6c, 0x6f}
 
 // Read reads data from the connection.
 // Read can be made to time out and return an error after a fixed
@@ -105,13 +111,13 @@ func Benchmark_WriteFrame(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		//
-		var f frame
-		f.fin = true
+		var f frame.Frame
+		f.Fin = true
 
-		f.opcode = Binary
-		f.payload = buf.Bytes()
-		f.payloadLen = int64(buf.Len())
-		writeFrame(&buf, f)
+		f.Opcode = opcode.Binary
+		f.Payload = buf.Bytes()
+		f.PayloadLen = int64(buf.Len())
+		frame.WriteFrame(&buf, f)
 		buf.Reset()
 	}
 }
@@ -127,7 +133,7 @@ func Benchmark_WriteMessage(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.WriteMessage(Binary, buf)
+		c.WriteMessage(opcode.Binary, buf)
 		buf2.Reset()
 	}
 }
@@ -145,7 +151,7 @@ func Benchmark_ReadMessage(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c.WriteMessage(Binary, wbuf)
+		c.WriteMessage(opcode.Binary, wbuf)
 		c.ReadLoop()
 		buf2.Reset()
 	}
@@ -153,11 +159,11 @@ func Benchmark_ReadMessage(b *testing.B) {
 
 func Benchmark_ReadFrame(b *testing.B) {
 	r := bytes.NewReader(noMaskData)
-	var headArray [maxFrameHeaderSize]byte
+	var headArray [enum.MaxFrameHeaderSize]byte
 	for i := 0; i < b.N; i++ {
 
 		r.Reset(noMaskData)
-		_, _, err := readHeader(r, &headArray)
+		_, _, err := frame.ReadHeader(r, &headArray)
 		if err != nil {
 			b.Fatal(err)
 		}

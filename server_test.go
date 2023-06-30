@@ -21,8 +21,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 	//"os"
 )
 
@@ -59,8 +57,8 @@ func (e *echoClientHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
 func newProfileServrEcho(t *testing.T, data []byte) *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := Upgrade(w, r, WithServerCallback(&echoHandler{}))
-		assert.NoError(t, err)
 		if err != nil {
+			t.Error(err)
 			return
 		}
 
@@ -100,7 +98,10 @@ func Test_ServerProfile(t *testing.T) {
 
 func Test_Upgrade(t *testing.T) {
 	r, err := http.NewRequest("GET", "http://test.com", nil)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	var out bytes.Buffer
 	prepareWriteResponse(r, &out, config{})

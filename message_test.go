@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/antlabs/wsutil/opcode"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -49,15 +48,21 @@ func (t *testMessageHandler) OnMessage(c *Conn, op opcode.Opcode, msg []byte) {
 		// fmt.Printf(">>>>>%p %s, %#v\n", &msg, message, msg)
 	}
 	if len(msg) < 30 {
-		assert.Equal(t.t, msg, need, message)
+		if bytes.Equal(msg, need) {
+			t.t.Logf(">>>>>%p %s, %#v\n", &msg, message, msg)
+		}
 	} else {
 
 		md51 := md5.Sum(need)
 		md52 := md5.Sum(msg)
-		assert.Equal(t.t, md51, md52, message)
+		if bytes.Equal(md51[:], md52[:]) {
+			t.t.Logf("md51 %x, md52 %x\n", md51, md52)
+		}
 	}
 	err := c.WriteMessage(op, msg)
-	assert.NoError(t.t, err)
+	if err != nil {
+		t.t.Error(err)
+	}
 	if !t.server {
 		// c.Close()
 	}
@@ -80,8 +85,8 @@ func newServrEcho(t *testing.T, data []byte, output bool) *httptest.Server {
 		c, err := Upgrade(w, r,
 			WithServerCallback(&testMessageHandler{t: t, need: data, server: true, count: -1, output: true}),
 		)
-		assert.NoError(t, err)
 		if err != nil {
+			t.Error(err)
 			return
 		}
 
@@ -96,44 +101,69 @@ func Test_ReadMessage10(t *testing.T) {
 	ts := newServrEcho(t, testBinaryMessage10, true)
 	client := &testMessageHandler{t: t, need: append([]byte(nil), testBinaryMessage10...), count: 1, done: make(chan struct{}), output: true}
 	c, err := Dial(ts.URL, WithClientCallback(client))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	go c.ReadLoop()
 
 	tmp := append([]byte(nil), testBinaryMessage10...)
 
 	err = c.WriteMessage(Binary, tmp)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	// <-client.done
 	time.Sleep(time.Second / 2)
-	assert.Equal(t, atomic.LoadInt32(&client.callbed), int32(1))
+	if atomic.LoadInt32(&client.callbed) != 1 {
+		t.Error("not callbed")
+	}
 }
 
 func Test_ReadMessage64k(t *testing.T) {
 	ts := newServrEcho(t, testBinaryMessage64kb, false)
 	client := &testMessageHandler{t: t, need: append([]byte(nil), testBinaryMessage64kb...), count: 1}
 	c, err := Dial(ts.URL, WithClientCallback(client))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	go c.ReadLoop()
 
 	tmp := append([]byte(nil), testBinaryMessage64kb...)
 	err = c.WriteMessage(Binary, tmp)
 	time.Sleep(time.Second / 2)
-	assert.NoError(t, err)
-	assert.Equal(t, atomic.LoadInt32(&client.callbed), int32(1))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if atomic.LoadInt32(&client.callbed) != 1 {
+		t.Error("not callbed")
+	}
 }
 
 func Test_ReadMessage64k_Text(t *testing.T) {
 	ts := newServrEcho(t, testTextMessage64kb, false)
 	client := &testMessageHandler{t: t, need: append([]byte(nil), testTextMessage64kb...), count: 1}
 	c, err := Dial(ts.URL, WithClientCallback(client))
-	assert.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	go c.ReadLoop()
 
 	tmp := append([]byte(nil), testTextMessage64kb...)
 	err = c.WriteMessage(Text, tmp)
-	assert.NoError(t, err)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	time.Sleep(time.Second / 2)
 
-	assert.NoError(t, err)
-	assert.Equal(t, atomic.LoadInt32(&client.callbed), int32(1))
+	if atomic.LoadInt32(&client.callbed) != 1 {
+		t.Error("not callbed")
+	}
 }

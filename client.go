@@ -57,7 +57,7 @@ func Dial(rawUrl string, opts ...OptionClient) (*Conn, error) {
 		dial.Header = make(http.Header)
 	}
 
-	dial.multipleTimesPayloadSize = 1.0
+	dial.defaultSetting()
 	for _, o := range opts {
 		o(&dial)
 	}
@@ -192,8 +192,8 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		return
 	}
 
-	brw := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
-	rsp, err := http.ReadResponse(brw.Reader, req)
+	br := bufio.NewReader(bufio.NewReader(conn))
+	rsp, err := http.ReadResponse(br, req)
 	if err != nil {
 		return nil, err
 	}
@@ -212,16 +212,24 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 
 	// 处理下已经在bufio里面的数据，后面都是直接操作net.Conn，所以需要取出bufio里面已读取的数据
 	var fr *fixedreader.FixedReader
-	if brw.Reader.Buffered() > 0 {
-		b, err := brw.Reader.Peek(brw.Reader.Buffered())
-		if err != nil {
-			return nil, err
+	if d.parseMode == ParseModeWindows {
+		fr = fixedreader.NewFixedReader(conn, bytespool.GetBytes(1024+enum.MaxFrameHeaderSize))
+		if br.Buffered() > 0 {
+			b, err := br.Peek(br.Buffered())
+			if err != nil {
+				return nil, err
+			}
+
+			buf := fr.Ptr()
+			if len(b) > 1024+enum.MaxFrameHeaderSize {
+				bytespool.PutBytes(buf)
+				buf = bytespool.GetBytes(len(b) + enum.MaxFrameHeaderSize)
+			}
+
+			copy(*buf, b)
+			fr.W = len(b)
 		}
-		b2 := bytespool.GetBytes(len(b) + enum.MaxFrameHeaderSize)
-		copy(*b2, b)
-		fr = fixedreader.NewFixedReader(conn, b2)
-		fr.W = len(b)
 	}
 	// fmt.Println(brw.Reader.Buffered())
-	return newConn(conn, true, d.config, fr), nil
+	return newConn(conn, true, d.config, fr, br), nil
 }

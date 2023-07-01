@@ -115,7 +115,7 @@ func Test_ReadMessage10(t *testing.T) {
 		return
 	}
 	// <-client.done
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second / 3)
 	if atomic.LoadInt32(&client.callbed) != 1 {
 		t.Error("not callbed")
 	}
@@ -133,7 +133,7 @@ func Test_ReadMessage64k(t *testing.T) {
 
 	tmp := append([]byte(nil), testBinaryMessage64kb...)
 	err = c.WriteMessage(Binary, tmp)
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second / 3)
 	if err != nil {
 		t.Error(err)
 		return
@@ -161,9 +161,9 @@ func Test_ReadMessage64k_Text(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	time.Sleep(time.Second / 2)
+	time.Sleep(time.Second / 3)
 
 	if atomic.LoadInt32(&client.callbed) != 1 {
-		t.Error("not callbed")
+		t.Errorf("not callbed:%d\n", client.callbed)
 	}
 }

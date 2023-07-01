@@ -15,14 +15,18 @@
 package quickws
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 
 	"github.com/antlabs/wsutil/bytespool"
+	"github.com/antlabs/wsutil/enum"
+	"github.com/antlabs/wsutil/fixedreader"
 )
 
 var (
@@ -40,7 +44,7 @@ type ConnOption struct {
 
 func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *Conn, err error) {
 	var conf ConnOption
-	conf.multipleTimesPayloadSize = 1.0
+	conf.defaultSetting()
 	for _, o := range opts {
 		o(&conf)
 	}
@@ -55,7 +59,16 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 		return nil, ErrNotFoundHijacker
 	}
 
-	conn, _, err := hi.Hijack()
+	var read *bufio.Reader
+	var conn net.Conn
+	if conf.parseMode == ParseModeWindows {
+		conn, _, err = hi.Hijack()
+	} else {
+		var rw *bufio.ReadWriter
+		conn, rw, err = hi.Hijack()
+		read = rw.Reader
+		rw = nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +93,12 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 	if _, err := conn.Write(tmpWriter.Bytes()); err != nil {
 		return nil, err
 	}
-	return newConn(conn, false, conf.config, nil), nil
+
+	var fr *fixedreader.FixedReader
+	if conf.parseMode == ParseModeWindows {
+		fr = fixedreader.NewFixedReader(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize))
+	}
+	return newConn(conn, false, conf.config, fr, read), nil
 }
 
 func writeHeaderKey(w io.Writer, key []byte) (err error) {

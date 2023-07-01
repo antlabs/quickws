@@ -67,12 +67,19 @@ func WithServerIgnorePong() OptionServer {
 }
 
 // 设置几倍payload的缓冲区
-func WithMultipleTimesPayloadSize(mt float32) OptionServer {
+// 只有解析方式是窗口的时候才有效
+func WithWindowsMultipleTimesPayloadSize(mt float32) OptionServer {
 	return func(o *ConnOption) {
 		// 如果mt < 1.0, 直接panic
 		if mt < 1.0 {
 			panic("multipleTimesPayloadSize must >= 1.0")
 		}
-		o.multipleTimesPayloadSize = mt
+		o.windowsMultipleTimesPayloadSize = mt
+	}
+}
+
+func WithWindowsParseMode() OptionServer {
+	return func(o *ConnOption) {
+		o.parseMode = ParseModeWindows
 	}
 }

@@ -15,6 +15,7 @@
 package quickws
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -40,11 +41,12 @@ type Conn struct {
 	c      net.Conn
 	client bool
 	config
-	fr *fixedreader.FixedReader
+	fr   *fixedreader.FixedReader
+	read *bufio.Reader // read 和fr同时只能使用一个
 }
 
-func newConn(c net.Conn, client bool, conf config, fr *fixedreader.FixedReader) *Conn {
-	return &Conn{c: c, client: client, config: conf, fr: fr}
+func newConn(c net.Conn, client bool, conf config, fr *fixedreader.FixedReader, read *bufio.Reader) *Conn {
+	return &Conn{c: c, client: client, config: conf, fr: fr, read: read}
 }
 
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
@@ -87,7 +89,7 @@ func (c *Conn) ReadLoop() error {
 	return c.readLoop()
 }
 
-func (c *Conn) readDataFromNet(fixedBuf *fixedreader.FixedReader, headArray *[enum.MaxFrameHeaderSize]byte) (f frame.Frame, err error) {
+func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, payload *[]byte) (f frame.Frame, err error) {
 	if c.readTimeout > 0 {
 		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
 		if err != nil {
@@ -96,7 +98,11 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedreader.FixedReader, headArray *[en
 		}
 	}
 
-	f, err = frame.ReadFrame2(fixedBuf, headArray, c.multipleTimesPayloadSize)
+	if c.fr != nil {
+		f, err = frame.ReadFrame2(c.fr, headArray, c.windowsMultipleTimesPayloadSize)
+	} else {
+		f, err = frame.ReadFromReader(c.read, headArray, payload)
+	}
 	if err != nil {
 		c.Callback.OnClose(c, err)
 		return
@@ -110,10 +116,6 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedreader.FixedReader, headArray *[en
 	return
 }
 
-func (c *Conn) initPayloadSize() int {
-	return int(1024.0 + float32(enum.MaxFrameHeaderSize)*c.multipleTimesPayloadSize)
-}
-
 // 读取websocket frame.Frame的循环
 func (c *Conn) readLoop() error {
 	var f frame.Frame
@@ -124,22 +126,22 @@ func (c *Conn) readLoop() error {
 	var err error
 	var op opcode.Opcode
 
-	var fixedBuf *fixedreader.FixedReader
 	if c.fr != nil {
-		fixedBuf = c.fr
-	} else {
-		// 默认最小1k + 14
-		fixedBuf = fixedreader.NewFixedReader(c.c, bytespool.GetBytes(c.initPayloadSize()+enum.MaxFrameHeaderSize))
+		defer c.fr.Release()
 	}
-	defer fixedBuf.Release()
 
 	var fragmentFrameBuf []byte
 	var headArray [enum.MaxFrameHeaderSize]byte
 
+	var payload []byte
+	if c.read != nil {
+		payload = *bytespool.GetBytes(1024)
+		// payload = make([]byte, 1024)
+	}
 	for {
 
 		// 从网络读取数据
-		f, err = c.readDataFromNet(fixedBuf, &headArray)
+		f, err = c.readDataFromNet(&headArray, &payload)
 		if err != nil {
 			return err
 		}

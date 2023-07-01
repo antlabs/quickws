@@ -111,7 +111,7 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedreader.FixedReader, headArray *[en
 }
 
 func (c *Conn) initPayloadSize() int {
-	return int(1024.0 * c.multipleTimesPayloadSize)
+	return int(1024.0 + float32(enum.MaxFrameHeaderSize)*c.multipleTimesPayloadSize)
 }
 
 // 读取websocket frame.Frame的循环

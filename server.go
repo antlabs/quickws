@@ -40,6 +40,7 @@ type ConnOption struct {
 
 func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *Conn, err error) {
 	var conf ConnOption
+	conf.multipleTimesPayloadSize = 1.0
 	for _, o := range opts {
 		o(&conf)
 	}

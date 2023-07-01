@@ -18,9 +18,10 @@ import "time"
 
 type config struct {
 	Callback
-	replyPing     bool // 开启自动回复
-	decompression bool // 开启解压缩功能
-	compression   bool // 开启压缩功能
-	ignorePong    bool // 忽略pong消息
-	readTimeout   time.Duration
+	replyPing                bool // 开启自动回复
+	decompression            bool // 开启解压缩功能
+	compression              bool // 开启压缩功能
+	ignorePong               bool // 忽略pong消息
+	readTimeout              time.Duration
+	multipleTimesPayloadSize float32 // 设置几倍的payload大小
 }

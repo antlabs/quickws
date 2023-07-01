@@ -65,3 +65,14 @@ func WithServerIgnorePong() OptionServer {
 		o.ignorePong = true
 	}
 }
+
+// 设置几倍payload的缓冲区
+func WithMultipleTimesPayloadSize(mt float32) OptionServer {
+	return func(o *ConnOption) {
+		// 如果mt < 1.0, 直接panic
+		if mt < 1.0 {
+			panic("multipleTimesPayloadSize must >= 1.0")
+		}
+		o.multipleTimesPayloadSize = mt
+	}
+}

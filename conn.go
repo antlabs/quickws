@@ -96,7 +96,7 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedreader.FixedReader, headArray *[en
 		}
 	}
 
-	f, err = frame.ReadFrame(fixedBuf, headArray)
+	f, err = frame.ReadFrame2(fixedBuf, headArray, c.multipleTimesPayloadSize)
 	if err != nil {
 		c.Callback.OnClose(c, err)
 		return
@@ -108,6 +108,10 @@ func (c *Conn) readDataFromNet(fixedBuf *fixedreader.FixedReader, headArray *[en
 		}
 	}
 	return
+}
+
+func (c *Conn) initPayloadSize() int {
+	return int(1024.0 * c.multipleTimesPayloadSize)
 }
 
 // 读取websocket frame.Frame的循环
@@ -125,7 +129,7 @@ func (c *Conn) readLoop() error {
 		fixedBuf = c.fr
 	} else {
 		// 默认最小1k + 14
-		fixedBuf = fixedreader.NewFixedReader(c.c, bytespool.GetBytes(1024+enum.MaxFrameHeaderSize))
+		fixedBuf = fixedreader.NewFixedReader(c.c, bytespool.GetBytes(c.initPayloadSize()+enum.MaxFrameHeaderSize))
 	}
 	defer fixedBuf.Release()
 

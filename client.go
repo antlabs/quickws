@@ -56,6 +56,8 @@ func Dial(rawUrl string, opts ...OptionClient) (*Conn, error) {
 	if dial.Header == nil {
 		dial.Header = make(http.Header)
 	}
+
+	dial.multipleTimesPayloadSize = 1.0
 	for _, o := range opts {
 		o(&dial)
 	}

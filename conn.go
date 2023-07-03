@@ -89,6 +89,12 @@ func (c *Conn) ReadLoop() error {
 	return c.readLoop()
 }
 
+func (c *Conn) StarReadLoop() {
+	go func() {
+		_ = c.ReadLoop()
+	}()
+}
+
 func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, payload *[]byte) (f frame.Frame, err error) {
 	if c.readTimeout > 0 {
 		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))

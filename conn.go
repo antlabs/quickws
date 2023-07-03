@@ -89,7 +89,7 @@ func (c *Conn) ReadLoop() error {
 	return c.readLoop()
 }
 
-func (c *Conn) StarReadLoop() {
+func (c *Conn) StartReadLoop() {
 	go func() {
 		_ = c.ReadLoop()
 	}()

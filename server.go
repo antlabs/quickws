@@ -65,10 +65,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 	var rw *bufio.ReadWriter
 	if conf.parseMode == ParseModeWindows {
 		conn, rw, err = hi.Hijack()
-		bufio2.ClearReader(rw.Reader)
-		bufio2.ClearWriter(rw.Writer)
-		rw.Reader = nil
-		rw.Writer = nil
+		bufio2.ClearReadWriter(rw)
 		rw = nil
 	} else {
 		var rw *bufio.ReadWriter

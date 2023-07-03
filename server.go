@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
@@ -61,8 +62,14 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 
 	var read *bufio.Reader
 	var conn net.Conn
+	var rw *bufio.ReadWriter
 	if conf.parseMode == ParseModeWindows {
-		conn, _, err = hi.Hijack()
+		conn, rw, err = hi.Hijack()
+		bufio2.ClearReader(rw.Reader)
+		bufio2.ClearWriter(rw.Writer)
+		rw.Reader = nil
+		rw.Writer = nil
+		rw = nil
 	} else {
 		var rw *bufio.ReadWriter
 		conn, rw, err = hi.Hijack()

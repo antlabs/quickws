@@ -99,10 +99,11 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 	}
 
 	var fr *fixedreader.FixedReader
+	bp := bytespool.New()
 	if conf.parseMode == ParseModeWindows {
-		fr = fixedreader.NewFixedReader(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize))
+		fr = fixedreader.NewFixedReader(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize), bp)
 	}
-	return newConn(conn, false, conf.config, fr, read), nil
+	return newConn(conn, false, conf.config, fr, read, bp), nil
 }
 
 func writeHeaderKey(w io.Writer, key []byte) (err error) {

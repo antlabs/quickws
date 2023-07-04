@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -43,10 +44,19 @@ type Conn struct {
 	config
 	fr   *fixedreader.FixedReader
 	read *bufio.Reader // read 和fr同时只能使用一个
+	bp   *bytespool.BytesPool
+	once sync.Once
 }
 
-func newConn(c net.Conn, client bool, conf config, fr *fixedreader.FixedReader, read *bufio.Reader) *Conn {
-	return &Conn{c: c, client: client, config: conf, fr: fr, read: read}
+func newConn(c net.Conn, client bool, conf config, fr *fixedreader.FixedReader, read *bufio.Reader, bp *bytespool.BytesPool) *Conn {
+	return &Conn{
+		c:      c,
+		client: client,
+		config: conf,
+		fr:     fr,
+		read:   read,
+		bp:     bp,
+	}
 }
 
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
@@ -354,6 +364,10 @@ func (c *Conn) WriteCloseTimeout(sc StatusCode, t time.Duration) (err error) {
 	return c.WriteTimeout(opcode.Close, buf, t)
 }
 
-func (c *Conn) Close() error {
-	return c.c.Close()
+func (c *Conn) Close() (err error) {
+	c.once.Do(func() {
+		c.bp.Free()
+		err = c.c.Close()
+	})
+	return
 }

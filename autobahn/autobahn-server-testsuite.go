@@ -25,7 +25,7 @@ var keyPEMBlock []byte
 type echoHandler struct{}
 
 func (e *echoHandler) OnOpen(c *quickws.Conn) {
-	fmt.Println("OnOpen:", c)
+	fmt.Printf("OnOpen: %p\n", c)
 }
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
@@ -36,7 +36,7 @@ func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) 
 }
 
 func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
-	fmt.Println("OnClose:", c, err)
+	fmt.Printf("OnClose:%p, %v\n", c, err)
 }
 
 // echo测试服务

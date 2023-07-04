@@ -211,17 +211,18 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	}
 
 	// 处理下已经在bufio里面的数据，后面都是直接操作net.Conn，所以需要取出bufio里面已读取的数据
-	var fr *fixedreader.FixedReader
-	bp := bytespool.New()
+	var fr fixedreader.FixedReader
+	var bp bytespool.BytesPool
+	bp.Init()
 	if d.parseMode == ParseModeWindows {
-		fr = fixedreader.NewFixedReader(conn, bytespool.GetBytes(1024+enum.MaxFrameHeaderSize), bp)
+		fr.Init(conn, bytespool.GetBytes(1024+enum.MaxFrameHeaderSize))
 		if br.Buffered() > 0 {
 			b, err := br.Peek(br.Buffered())
 			if err != nil {
 				return nil, err
 			}
 
-			buf := fr.Ptr()
+			buf := fr.BufPtr()
 			if len(b) > 1024+enum.MaxFrameHeaderSize {
 				bytespool.PutBytes(buf)
 				buf = bytespool.GetBytes(len(b) + enum.MaxFrameHeaderSize)

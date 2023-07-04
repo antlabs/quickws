@@ -42,13 +42,14 @@ type Conn struct {
 	c      net.Conn
 	client bool
 	config
-	fr   *fixedreader.FixedReader
-	read *bufio.Reader // read 和fr同时只能使用一个
-	bp   *bytespool.BytesPool
 	once sync.Once
+
+	fr   fixedreader.FixedReader
+	read *bufio.Reader // read 和fr同时只能使用一个
+	bp   bytespool.BytesPool
 }
 
-func newConn(c net.Conn, client bool, conf config, fr *fixedreader.FixedReader, read *bufio.Reader, bp *bytespool.BytesPool) *Conn {
+func newConn(c net.Conn, client bool, conf config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
 	return &Conn{
 		c:      c,
 		client: client,
@@ -114,8 +115,8 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, payload
 		}
 	}
 
-	if c.fr != nil {
-		f, err = frame.ReadFrame2(c.fr, headArray, c.windowsMultipleTimesPayloadSize)
+	if c.fr.IsInit() {
+		f, err = frame.ReadFrame2(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
 	} else {
 		f, err = frame.ReadFromReader(c.read, headArray, payload)
 	}
@@ -142,8 +143,11 @@ func (c *Conn) readLoop() error {
 	var err error
 	var op opcode.Opcode
 
-	if c.fr != nil {
-		defer c.fr.Release()
+	if c.fr.IsInit() {
+		defer func() {
+			c.fr.Release()
+			c.fr.BufPtr()
+		}()
 	}
 
 	var fragmentFrameBuf []byte

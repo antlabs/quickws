@@ -25,7 +25,7 @@ func (e *echoHandler) OnOpen(c *quickws.Conn) {
 }
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
-	fmt.Println("OnMessage:", c, op, msg)
+	// fmt.Println("OnMessage:", c, op, msg)
 	if op == quickws.Text || op == quickws.Binary {
 		// os.WriteFile("./debug.dat", msg, 0o644)
 		if err := c.WriteTimeout(op, msg, 1*time.Minute); err != nil {

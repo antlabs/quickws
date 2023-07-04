@@ -64,6 +64,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 	var conn net.Conn
 	var rw *bufio.ReadWriter
 	if conf.parseMode == ParseModeWindows {
+		// 这里不需要rw，直接使用conn
 		conn, rw, err = hi.Hijack()
 		bufio2.ClearReadWriter(rw)
 		rw = nil
@@ -98,10 +99,11 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *C
 		return nil, err
 	}
 
-	var fr *fixedreader.FixedReader
-	bp := bytespool.New()
+	var fr fixedreader.FixedReader
+	var bp bytespool.BytesPool
+	bp.Init()
 	if conf.parseMode == ParseModeWindows {
-		fr = fixedreader.NewFixedReader(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize), bp)
+		fr.Init(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize))
 	}
 	return newConn(conn, false, conf.config, fr, read, bp), nil
 }

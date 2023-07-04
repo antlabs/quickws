@@ -2,4 +2,4 @@ module github.com/antlabs/quickws
 
 go 1.20
 
-require github.com/antlabs/wsutil v0.0.8-0.20230704120558-9b36d9b6cd5e
+require github.com/antlabs/wsutil v0.0.8-0.20230704153127-f2a6c793041f

@@ -39,14 +39,14 @@ const (
 // var _ net.Conn = (*Conn)(nil)
 
 type Conn struct {
+	read   *bufio.Reader // read 和fr同时只能使用一个
 	c      net.Conn
 	client bool
 	config
 	once sync.Once
 
-	fr   fixedreader.FixedReader
-	read *bufio.Reader // read 和fr同时只能使用一个
-	bp   bytespool.BytesPool
+	fr fixedreader.FixedReader
+	bp bytespool.BytesPool
 }
 
 func newConn(c net.Conn, client bool, conf config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {

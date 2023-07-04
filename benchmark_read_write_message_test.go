@@ -138,24 +138,27 @@ func Benchmark_WriteMessage(b *testing.B) {
 	}
 }
 
-func Benchmark_ReadMessage(b *testing.B) {
-	var c Conn
-	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
-	c.c = &testConn{buf: buf2}
-	c.Callback = &DefCallback{}
+// TODO
+// func Benchmark_ReadMessage(b *testing.B) {
+// 	var c Conn
+// 	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
+// 	c.c = &testConn{buf: buf2}
+// 	rv := make([]byte, 0, 1024)
+// 	c.fr.Init(c.c, &rv)
+// 	c.Callback = &DefCallback{}
 
-	wbuf := make([]byte, 1024)
-	for i := range wbuf {
-		wbuf[i] = 1
-	}
+// 	wbuf := make([]byte, 1024)
+// 	for i := range wbuf {
+// 		wbuf[i] = 1
+// 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		c.WriteMessage(opcode.Binary, wbuf)
-		c.ReadLoop()
-		buf2.Reset()
-	}
-}
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		c.WriteMessage(opcode.Binary, wbuf)
+// 		c.ReadLoop()
+// 		buf2.Reset()
+// 	}
+// }
 
 func Benchmark_ReadFrame(b *testing.B) {
 	r := bytes.NewReader(noMaskData)

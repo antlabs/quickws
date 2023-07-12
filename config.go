@@ -16,16 +16,19 @@ package quickws
 
 import (
 	"time"
+	"unicode/utf8"
 
 	"github.com/antlabs/wsutil/enum"
 )
 
 type config struct {
 	Callback
-	replyPing                       bool // 开启自动回复
-	decompression                   bool // 开启解压缩功能
-	compression                     bool // 开启压缩功能
-	ignorePong                      bool // 忽略pong消息
+	tcpNoDelay                      *bool
+	replyPing                       bool              // 开启自动回复
+	decompression                   bool              // 开启解压缩功能
+	compression                     bool              // 开启压缩功能
+	ignorePong                      bool              // 忽略pong消息
+	utf8Check                       func([]byte) bool // utf8检查
 	readTimeout                     time.Duration
 	windowsMultipleTimesPayloadSize float32   // 设置几倍的payload大小
 	parseMode                       parseMode // 解析模式
@@ -39,4 +42,5 @@ func (c *config) initPayloadSize() int {
 func (c *config) defaultSetting() {
 	c.windowsMultipleTimesPayloadSize = 1.0
 	c.parseMode = ParseModeWindows
+	c.utf8Check = utf8.Valid
 }

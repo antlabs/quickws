@@ -17,13 +17,13 @@ package quickws
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
@@ -49,7 +49,22 @@ type Conn struct {
 	bp bytespool.BytesPool
 }
 
+func setNoDelay(c net.Conn, noDelay bool) error {
+	if tcp, ok := c.(*net.TCPConn); ok {
+		return tcp.SetNoDelay(noDelay)
+	}
+
+	if tlsTCP, ok := c.(*tls.Conn); ok {
+		return setNoDelay(tlsTCP.NetConn(), noDelay)
+	}
+	return nil
+}
+
 func newConn(c net.Conn, client bool, conf config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
+	if conf.tcpNoDelay != nil {
+		_ = setNoDelay(c, *conf.tcpNoDelay)
+	}
+
 	return &Conn{
 		c:      c,
 		client: client,
@@ -116,9 +131,9 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, payload
 	}
 
 	if c.fr.IsInit() {
-		f, err = frame.ReadFrame2(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
+		f, err = frame.ReadFrameFromWindows(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
 	} else {
-		f, err = frame.ReadFromReader(c.read, headArray, payload)
+		f, err = frame.ReadFrameFromReader(c.read, headArray, payload)
 	}
 	if err != nil {
 		c.Callback.OnClose(c, err)
@@ -155,8 +170,7 @@ func (c *Conn) readLoop() error {
 
 	var payload []byte
 	if c.read != nil {
-		payload = *bytespool.GetBytes(1024)
-		// payload = make([]byte, 1024)
+		payload = *bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
 	}
 	for {
 
@@ -191,9 +205,9 @@ func (c *Conn) readLoop() error {
 						}
 						fragmentFrameBuf = tmpeBuf
 					}
-					// 这里的check按道理应该放到f.Fin前面， 会更符合rfc的标准, 前提是utf8.Valid修改成流式解析
-					// TODO utf8.Valid 修改成流式解析
-					if fragmentFrameHeader.Opcode == opcode.Text && !utf8.Valid(fragmentFrameBuf) {
+					// 这里的check按道理应该放到f.Fin前面， 会更符合rfc的标准, 前提是c.utf8Check修改成流式解析
+					// TODO c.utf8Check 修改成流式解析
+					if fragmentFrameHeader.Opcode == opcode.Text && !c.utf8Check(fragmentFrameBuf) {
 						c.Callback.OnClose(c, ErrTextNotUTF8)
 						return ErrTextNotUTF8
 					}
@@ -234,7 +248,7 @@ func (c *Conn) readLoop() error {
 			}
 
 			if f.Opcode == opcode.Text {
-				if !utf8.Valid(f.Payload) {
+				if !c.utf8Check(f.Payload) {
 					c.c.Close()
 					c.Callback.OnClose(c, ErrTextNotUTF8)
 					return ErrTextNotUTF8
@@ -263,7 +277,7 @@ func (c *Conn) readLoop() error {
 					return c.writeErrAndOnClose(ProtocolError, ErrClosePayloadTooSmall)
 				}
 
-				if !utf8.Valid(f.Payload[2:]) {
+				if !c.utf8Check(f.Payload[2:]) {
 					return c.writeErrAndOnClose(ProtocolError, ErrTextNotUTF8)
 				}
 
@@ -319,7 +333,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	var f frame.Frame
 
 	if op == opcode.Text {
-		if !utf8.Valid(writeBuf) {
+		if !c.utf8Check(writeBuf) {
 			return ErrTextNotUTF8
 		}
 	}

@@ -20,66 +20,74 @@ import (
 	"time"
 )
 
-type OptionClient func(*DialOption)
+type ClientOption func(*DialOption)
 
 // 配置callback
-func WithClientCallback(cb Callback) OptionClient {
+func WithClientCallback(cb Callback) ClientOption {
 	return func(o *DialOption) {
 		o.Callback = cb
 	}
 }
 
+// 设置TCP_NODELAY
+func WithClientTCPDelay() ClientOption {
+	return func(o *DialOption) {
+		b := false
+		o.tcpNoDelay = &b
+	}
+}
+
 // 仅仅配置OnMessae函数
-func WithClientOnMessageFunc(cb OnMessageFunc) OptionClient {
+func WithClientOnMessageFunc(cb OnMessageFunc) ClientOption {
 	return func(o *DialOption) {
 		o.Callback = OnMessageFunc(cb)
 	}
 }
 
 // 配置tls.config
-func WithClientTLSConfig(tls *tls.Config) OptionClient {
+func WithClientTLSConfig(tls *tls.Config) ClientOption {
 	return func(o *DialOption) {
 		o.tlsConfig = tls
 	}
 }
 
 // 配置http.Header
-func WithClientHTTPHeader(h http.Header) OptionClient {
+func WithClientHTTPHeader(h http.Header) ClientOption {
 	return func(o *DialOption) {
 		o.Header = h
 	}
 }
 
 // 配置握手时的timeout
-func WithClientDialTimeout(t time.Duration) OptionClient {
+func WithClientDialTimeout(t time.Duration) ClientOption {
 	return func(o *DialOption) {
 		o.dialTimeout = t
 	}
 }
 
 // 配置自动回应ping frame, 当收到ping， 回一个pong
-func WithClientReplyPing() OptionClient {
+func WithClientReplyPing() ClientOption {
 	return func(o *DialOption) {
 		o.replyPing = true
 	}
 }
 
 // 配置解压缩
-func WithClientDecompression() OptionClient {
+func WithClientDecompression() ClientOption {
 	return func(o *DialOption) {
 		o.decompression = true
 	}
 }
 
 // 配置压缩
-func WithClientCompression() OptionClient {
+func WithClientCompression() ClientOption {
 	return func(o *DialOption) {
 		o.compression = true
 	}
 }
 
 // 配置压缩和解压缩
-func WithClientDecompressAndCompress() OptionClient {
+func WithClientDecompressAndCompress() ClientOption {
 	return func(o *DialOption) {
 		o.compression = true
 		o.decompression = true

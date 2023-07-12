@@ -43,7 +43,7 @@ type ConnOption struct {
 	config
 }
 
-func Upgrade(w http.ResponseWriter, r *http.Request, opts ...OptionServer) (c *Conn, err error) {
+func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *Conn, err error) {
 	var conf ConnOption
 	conf.defaultSetting()
 	for _, o := range opts {

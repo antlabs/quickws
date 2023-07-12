@@ -44,7 +44,7 @@ type DialOption struct {
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
 // 又是一顿if else, 咬文嚼字
-func Dial(rawUrl string, opts ...OptionClient) (*Conn, error) {
+func Dial(rawUrl string, opts ...ClientOption) (*Conn, error) {
 	var dial DialOption
 	u, err := url.Parse(rawUrl)
 	if err != nil {

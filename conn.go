@@ -28,6 +28,7 @@ import (
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
+	"github.com/antlabs/wsutil/fixedwriter"
 	"github.com/antlabs/wsutil/frame"
 	"github.com/antlabs/wsutil/opcode"
 )
@@ -46,6 +47,7 @@ type Conn struct {
 	once sync.Once
 
 	fr fixedreader.FixedReader
+	fw fixedwriter.FixedWriter
 	bp bytespool.BytesPool
 }
 
@@ -61,9 +63,7 @@ func setNoDelay(c net.Conn, noDelay bool) error {
 }
 
 func newConn(c net.Conn, client bool, conf config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
-	if conf.tcpNoDelay != nil {
-		_ = setNoDelay(c, *conf.tcpNoDelay)
-	}
+	_ = setNoDelay(c, conf.tcpNoDelay)
 
 	return &Conn{
 		c:      c,
@@ -361,7 +361,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 		newMask(f.MaskValue[:])
 	}
 
-	return frame.WriteFrame(c.c, f)
+	return frame.WriteFrame(c.c, f, &c.fw)
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {

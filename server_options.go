@@ -21,8 +21,7 @@ type ServerOption func(*ConnOption)
 // 设置TCP_NODELAY
 func WithServerTCPDelay() ServerOption {
 	return func(o *ConnOption) {
-		var b bool
-		o.tcpNoDelay = &b
+		o.tcpNoDelay = false
 	}
 }
 

@@ -32,8 +32,7 @@ func WithClientCallback(cb Callback) ClientOption {
 // 设置TCP_NODELAY
 func WithClientTCPDelay() ClientOption {
 	return func(o *DialOption) {
-		b := false
-		o.tcpNoDelay = &b
+		o.tcpNoDelay = false
 	}
 }
 

@@ -23,7 +23,7 @@ import (
 
 type config struct {
 	Callback
-	tcpNoDelay                      *bool
+	tcpNoDelay                      bool
 	replyPing                       bool              // 开启自动回复
 	decompression                   bool              // 开启解压缩功能
 	compression                     bool              // 开启压缩功能
@@ -41,6 +41,7 @@ func (c *config) initPayloadSize() int {
 // 默认设置
 func (c *config) defaultSetting() {
 	c.windowsMultipleTimesPayloadSize = 1.0
+	c.tcpNoDelay = true
 	c.parseMode = ParseModeWindows
 	c.utf8Check = utf8.Valid
 }

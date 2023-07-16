@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -329,8 +330,39 @@ func (w *wrapBuffer) Close() error {
 	return nil
 }
 
+func (c *Conn) WriteMessage2(op Opcode, writeBuf []byte) (err error) {
+	if op == opcode.Text {
+		if !c.utf8Check(writeBuf) {
+			return ErrTextNotUTF8
+		}
+	}
+
+	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	if rsv1 {
+		var out wrapBuffer
+		w := compressNoContextTakeover(&out, defaultCompressionLevel)
+		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
+			return
+		}
+
+		if err = w.Close(); err != nil {
+			return
+		}
+		writeBuf = out.Bytes()
+	}
+
+	// f.Opcode = op
+	// f.PayloadLen = int64(len(writeBuf))
+	maskValue := uint32(0)
+	if c.client {
+		maskValue = rand.Uint32()
+	}
+
+	return frame.WriteFrame2(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
+}
+
 func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
-	var f frame.Frame
+	var f frame.FrameHeader
 
 	if op == opcode.Text {
 		if !c.utf8Check(writeBuf) {
@@ -354,14 +386,13 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	}
 
 	f.Opcode = op
-	f.Payload = writeBuf
 	f.PayloadLen = int64(len(writeBuf))
 	if c.client {
 		f.Mask = true
 		newMask(f.MaskValue[:])
 	}
 
-	return frame.WriteFrame(c.c, f, &c.fw)
+	return frame.WriteFrame(c.c, f, writeBuf, &c.fw)
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {

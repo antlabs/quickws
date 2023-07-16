@@ -5,5 +5,10 @@ autobahn-client-testsuite-linux-amd64
 autobahn-server-testsuite-darwin-arm64
 autobahn-server-testsuite-linux-amd64
 autobahn/autobahn-server-testsuite-darwin-arm64-arena
+autobahn-client-darwin-arm64
+autobahn-client-linux-amd64
+autobahn-server-darwin-arm64
+autobahn-server-darwin-arm64-arena
+autobahn-server-linux-amd64
 cpu.profile
 mem.profile

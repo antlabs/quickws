@@ -38,6 +38,7 @@ func (testconn *testConn) Read(b []byte) (n int, err error) {
 // time limit; see SetDeadline and SetWriteDeadline.
 func (testconn *testConn) Write(b []byte) (n int, err error) {
 	return testconn.buf.Write(b)
+	return
 }
 
 // Close closes the connection.
@@ -113,6 +114,22 @@ func Benchmark_WriteMessage(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.WriteMessage(opcode.Binary, buf)
+		buf2.Reset()
+	}
+}
+
+func Benchmark_WriteMessage2(b *testing.B) {
+	var c Conn
+	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
+	c.c = &testConn{buf: buf2}
+	buf := make([]byte, 1024)
+	for i := range buf {
+		buf[i] = 1
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c.WriteMessage2(opcode.Binary, buf)
 		buf2.Reset()
 	}
 }

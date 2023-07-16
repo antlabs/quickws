@@ -30,7 +30,10 @@ func (e *echoHandler) OnOpen(c *quickws.Conn) {
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
 	// fmt.Println("OnMessage:", c, msg, op)
-	if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+	// if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
+	// 	fmt.Println("write fail:", err)
+	// }
+	if err := c.WriteMessage2(op, msg); err != nil {
 		fmt.Println("write fail:", err)
 	}
 }

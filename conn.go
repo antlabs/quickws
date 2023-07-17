@@ -330,7 +330,7 @@ func (w *wrapBuffer) Close() error {
 	return nil
 }
 
-func (c *Conn) WriteMessage2(op Opcode, writeBuf []byte) (err error) {
+func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	if op == opcode.Text {
 		if !c.utf8Check(writeBuf) {
 			return ErrTextNotUTF8
@@ -358,42 +358,42 @@ func (c *Conn) WriteMessage2(op Opcode, writeBuf []byte) (err error) {
 		maskValue = rand.Uint32()
 	}
 
-	return frame.WriteFrame2(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
+	return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
 }
 
-func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
-	var f frame.FrameHeader
+// func (c *Conn) WriteMessageOld(op Opcode, writeBuf []byte) (err error) {
+// 	var f frame.FrameHeader
 
-	if op == opcode.Text {
-		if !c.utf8Check(writeBuf) {
-			return ErrTextNotUTF8
-		}
-	}
+// 	if op == opcode.Text {
+// 		if !c.utf8Check(writeBuf) {
+// 			return ErrTextNotUTF8
+// 		}
+// 	}
 
-	f.Fin = true
-	f.Rsv1 = c.compression && (op == opcode.Text || op == opcode.Binary)
-	if f.Rsv1 {
-		var out wrapBuffer
-		w := compressNoContextTakeover(&out, defaultCompressionLevel)
-		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-			return
-		}
+// 	f.Fin = true
+// 	f.Rsv1 = c.compression && (op == opcode.Text || op == opcode.Binary)
+// 	if f.Rsv1 {
+// 		var out wrapBuffer
+// 		w := compressNoContextTakeover(&out, defaultCompressionLevel)
+// 		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
+// 			return
+// 		}
 
-		if err = w.Close(); err != nil {
-			return
-		}
-		writeBuf = out.Bytes()
-	}
+// 		if err = w.Close(); err != nil {
+// 			return
+// 		}
+// 		writeBuf = out.Bytes()
+// 	}
 
-	f.Opcode = op
-	f.PayloadLen = int64(len(writeBuf))
-	if c.client {
-		f.Mask = true
-		newMask(f.MaskValue[:])
-	}
+// 	f.Opcode = op
+// 	f.PayloadLen = int64(len(writeBuf))
+// 	if c.client {
+// 		f.Mask = true
+// 		newMask(f.MaskValue[:])
+// 	}
 
-	return frame.WriteFrame(c.c, f, writeBuf, &c.fw)
-}
+// 	return frame.WriteFrameOld(c.c, f, writeBuf, &c.fw)
+// }
 
 func (c *Conn) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)

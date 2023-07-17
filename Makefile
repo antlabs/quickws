@@ -1,2 +1,2 @@
-dump:
-	go build -o /dev/null -gcflags -S *
+# dump:
+	#go build -o /dev/null -gcflags -S *

@@ -186,20 +186,22 @@ func (c *Conn) readLoop() error {
 			op = fragmentFrameHeader.Opcode
 		}
 
+		rsv1 := f.GetRsv1()
 		// 检查Rsv1 rsv2 Rsv3
-		if f.Rsv1 && c.failRsv1(op) || f.Rsv2 || f.Rsv3 {
-			err = fmt.Errorf("%w:Rsv1(%t) Rsv2(%t) rsv2(%t) compression:%t", ErrRsv123, f.Rsv1, f.Rsv2, f.Rsv3, c.compression)
+		if rsv1 && c.failRsv1(op) || f.GetRsv2() || f.GetRsv3() {
+			err = fmt.Errorf("%w:Rsv1(%t) Rsv2(%t) rsv2(%t) compression:%t", ErrRsv123, rsv1, f.GetRsv2(), f.GetRsv3(), c.compression)
 			return c.writeErrAndOnClose(ProtocolError, err)
 		}
 
+		fin := f.GetFin()
 		if fragmentFrameHeader != nil && !f.Opcode.IsControl() {
 			if f.Opcode == 0 {
 				fragmentFrameBuf = append(fragmentFrameBuf, f.Payload...)
 
 				// 分段的在这返回
-				if f.Fin {
+				if fin {
 					// 解压缩
-					if fragmentFrameHeader.Rsv1 && c.decompression {
+					if fragmentFrameHeader.GetRsv1() && c.decompression {
 						tmpeBuf, err := decode(fragmentFrameBuf)
 						if err != nil {
 							return err
@@ -224,10 +226,8 @@ func (c *Conn) readLoop() error {
 			return ErrFrameOpcode
 		}
 
-		// 检查Opcode
-		switch f.Opcode {
-		case opcode.Text, opcode.Binary:
-			if !f.Fin {
+		if f.Opcode == opcode.Text || f.Opcode == opcode.Binary {
+			if !fin {
 				prevFrame := f.FrameHeader
 				// 第一次分段
 				if len(fragmentFrameBuf) == 0 {
@@ -240,7 +240,7 @@ func (c *Conn) readLoop() error {
 				continue
 			}
 
-			if f.Rsv1 && c.decompression {
+			if rsv1 && c.decompression {
 				// 不分段的解压缩
 				f.Payload, err = decode(f.Payload)
 				if err != nil {
@@ -257,14 +257,17 @@ func (c *Conn) readLoop() error {
 			}
 
 			c.Callback.OnMessage(c, f.Opcode, f.Payload)
-		case Close, Ping, Pong:
+			continue
+		}
+
+		if f.Opcode == Close || f.Opcode == Ping || f.Opcode == Pong {
 			//  对方发的控制消息太大
 			if f.PayloadLen > maxControlFrameSize {
 				c.writeErrAndOnClose(ProtocolError, ErrMaxControlFrameSize)
 				return ErrMaxControlFrameSize
 			}
 			// Close, Ping, Pong 不能分片
-			if !f.Fin {
+			if !fin {
 				c.writeErrAndOnClose(ProtocolError, ErrNOTBeFragmented)
 				return ErrNOTBeFragmented
 			}
@@ -314,11 +317,11 @@ func (c *Conn) readLoop() error {
 			}
 
 			c.Callback.OnMessage(c, f.Opcode, nil)
-		default:
-			c.writeErrAndOnClose(ProtocolError, ErrOpcode)
-			return ErrOpcode
+			continue
 		}
-
+		// 检查Opcode
+		c.writeErrAndOnClose(ProtocolError, ErrOpcode)
+		return ErrOpcode
 	}
 }
 
@@ -361,39 +364,38 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
 }
 
-// func (c *Conn) WriteMessageOld(op Opcode, writeBuf []byte) (err error) {
-// 	var f frame.FrameHeader
+// 这是一个不安全的方法, writeBuf的格式必须是 14个字节的空白长度+需要写的payload组成
+func (c *Conn) WriteMessageUnsafe(op Opcode, writeBuf []byte) (err error) {
+	// if op == opcode.Text {
+	// 	if !c.utf8Check(writeBuf) {
+	// 		return ErrTextNotUTF8
+	// 	}
+	// }
 
-// 	if op == opcode.Text {
-// 		if !c.utf8Check(writeBuf) {
-// 			return ErrTextNotUTF8
-// 		}
-// 	}
+	// rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	// if rsv1 {
+	// 	var out wrapBuffer
+	// 	w := compressNoContextTakeover(&out, defaultCompressionLevel)
+	// 	if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
+	// 		return
+	// 	}
 
-// 	f.Fin = true
-// 	f.Rsv1 = c.compression && (op == opcode.Text || op == opcode.Binary)
-// 	if f.Rsv1 {
-// 		var out wrapBuffer
-// 		w := compressNoContextTakeover(&out, defaultCompressionLevel)
-// 		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-// 			return
-// 		}
+	// 	if err = w.Close(); err != nil {
+	// 		return
+	// 	}
+	// 	writeBuf = out.Bytes()
+	// }
 
-// 		if err = w.Close(); err != nil {
-// 			return
-// 		}
-// 		writeBuf = out.Bytes()
-// 	}
+	// // f.Opcode = op
+	// // f.PayloadLen = int64(len(writeBuf))
+	// maskValue := uint32(0)
+	// if c.client {
+	// 	maskValue = rand.Uint32()
+	// }
 
-// 	f.Opcode = op
-// 	f.PayloadLen = int64(len(writeBuf))
-// 	if c.client {
-// 		f.Mask = true
-// 		newMask(f.MaskValue[:])
-// 	}
-
-// 	return frame.WriteFrameOld(c.c, f, writeBuf, &c.fw)
-// }
+	// return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
+	return
+}
 
 func (c *Conn) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)

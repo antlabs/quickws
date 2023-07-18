@@ -38,7 +38,6 @@ func (testconn *testConn) Read(b []byte) (n int, err error) {
 // time limit; see SetDeadline and SetWriteDeadline.
 func (testconn *testConn) Write(b []byte) (n int, err error) {
 	return testconn.buf.Write(b)
-	return
 }
 
 // Close closes the connection.
@@ -102,59 +101,52 @@ type testConn struct {
 	buf *bytes.Buffer
 }
 
-// func Benchmark_WriteMessage(b *testing.B) {
-// 	var c Conn
-// 	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
-// 	c.c = &testConn{buf: buf2}
-// 	buf := make([]byte, 1024)
-// 	for i := range buf {
-// 		buf[i] = 1
-// 	}
-
-// 	b.ResetTimer()
-// 	for i := 0; i < b.N; i++ {
-// 		c.WriteMessage(opcode.Binary, buf)
-// 		buf2.Reset()
-// 	}
-// }
-
 func Benchmark_WriteMessage(b *testing.B) {
-	var c Conn
-	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
-	c.c = &testConn{buf: buf2}
-	buf := make([]byte, 1024)
-	for i := range buf {
-		buf[i] = 1
-	}
+	b.Run("1.case", func(b *testing.B) {
+		var c Conn
+		buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
+		c.c = &testConn{buf: buf2}
+		buf := make([]byte, 1024)
+		for i := range buf {
+			buf[i] = 1
+		}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		c.WriteMessage(opcode.Binary, buf)
-		buf2.Reset()
-	}
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			c.WriteMessage(opcode.Binary, buf)
+			buf2.Reset()
+		}
+	})
 }
 
-// TODO
-// func Benchmark_ReadMessage(b *testing.B) {
-// 	var c Conn
-// 	buf2 := bytes.NewBuffer(make([]byte, 0, 1024))
-// 	c.c = &testConn{buf: buf2}
-// 	rv := make([]byte, 0, 1024)
-// 	c.fr.Init(c.c, &rv)
-// 	c.Callback = &DefCallback{}
+func Benchmark_ReadMessage(b *testing.B) {
+	b.Run("bufio-TODO", func(b *testing.B) {
+	})
 
-// 	wbuf := make([]byte, 1024)
-// 	for i := range wbuf {
-// 		wbuf[i] = 1
-// 	}
+	b.Run("windows", func(b *testing.B) {
+		var c Conn
+		buf2 := bytes.NewBuffer(make([]byte, 0, 1024+enum.MaxFrameHeaderSize))
 
-// 	b.ResetTimer()
-// 	for i := 0; i < b.N; i++ {
-// 		c.WriteMessage(opcode.Binary, wbuf)
-// 		c.ReadLoop()
-// 		buf2.Reset()
-// 	}
-// }
+		c.c = &testConn{buf: buf2}
+
+		windows := make([]byte, 0, 1024)
+
+		c.fr.Init(c.c, &windows)
+		c.Callback = &DefCallback{}
+
+		wbuf := make([]byte, 1024)
+		for i := range wbuf {
+			wbuf[i] = 1
+		}
+
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			c.WriteMessage(opcode.Binary, wbuf)
+			c.ReadLoop()
+			buf2.Reset()
+		}
+	})
+}
 
 func Benchmark_ReadFrame(b *testing.B) {
 	r := bytes.NewReader(noMaskData)

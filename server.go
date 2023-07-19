@@ -28,6 +28,7 @@ import (
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
+	"github.com/antlabs/wsutil/rsp"
 )
 
 var (
@@ -67,6 +68,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *C
 		// 这里不需要rw，直接使用conn
 		conn, rw, err = hi.Hijack()
 		bufio2.ClearReadWriter(rw)
+		rsp.ClearRsp(w)
 		rw = nil
 	} else {
 		var rw *bufio.ReadWriter

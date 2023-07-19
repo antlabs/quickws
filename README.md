@@ -70,7 +70,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.ReadLoop()
+	c.StartReadLoop()
 }
 
 func main() {
@@ -114,7 +114,7 @@ func main() {
 		return
 	}
 
-	c.ReadLoop()
+	c.StartReadLoop()
 
 }
 

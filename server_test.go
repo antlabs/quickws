@@ -104,6 +104,6 @@ func Test_Upgrade(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	prepareWriteResponse(r, &out, config{})
+	prepareWriteResponse(r, &out, &Config{})
 	fmt.Printf("%s\n %d", out.Bytes(), out.Len())
 }

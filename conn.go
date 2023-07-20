@@ -41,11 +41,11 @@ const (
 // var _ net.Conn = (*Conn)(nil)
 
 type Conn struct {
-	read   *bufio.Reader // read 和fr同时只能使用一个
+	read *bufio.Reader // read 和fr同时只能使用一个
+	*Config
 	c      net.Conn
 	client bool
-	config
-	once sync.Once
+	once   sync.Once
 
 	fr fixedreader.FixedReader
 	fw fixedwriter.FixedWriter
@@ -63,13 +63,13 @@ func setNoDelay(c net.Conn, noDelay bool) error {
 	return nil
 }
 
-func newConn(c net.Conn, client bool, conf config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
+func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
 	_ = setNoDelay(c, conf.tcpNoDelay)
 
 	return &Conn{
 		c:      c,
 		client: client,
-		config: conf,
+		Config: conf,
 		fr:     fr,
 		read:   read,
 		bp:     bp,

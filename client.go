@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
@@ -39,7 +40,31 @@ type DialOption struct {
 	u           *url.URL
 	tlsConfig   *tls.Config
 	dialTimeout time.Duration
-	config
+	Config
+}
+
+func ClientOpt(opts ...ClientOption) *Config {
+	var dial DialOption
+	dial.defaultSetting()
+	for _, o := range opts {
+		o(&dial)
+	}
+	return &dial.Config
+}
+
+func DialWithConfig(rawUrl string, conf *Config) (*Conn, error) {
+	var dial DialOption
+	u, err := url.Parse(rawUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	dial.u = u
+	dial.dialTimeout = defaultTimeout
+	if dial.Header == nil {
+		dial.Header = make(http.Header)
+	}
+	return dial.Dial()
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
@@ -231,7 +256,9 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 			copy(*buf, b)
 			fr.W = len(b)
 		}
+		bufio2.ClearReader(br)
+		br = nil
 	}
 	// fmt.Println(brw.Reader.Buffered())
-	return newConn(conn, true, d.config, fr, br, bp), nil
+	return newConn(conn, true, &d.Config, fr, br, bp), nil
 }

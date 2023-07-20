@@ -21,7 +21,7 @@ import (
 	"github.com/antlabs/wsutil/enum"
 )
 
-type config struct {
+type Config struct {
 	Callback
 	tcpNoDelay                      bool
 	replyPing                       bool              // 开启自动回复
@@ -34,12 +34,12 @@ type config struct {
 	parseMode                       parseMode // 解析模式
 }
 
-func (c *config) initPayloadSize() int {
+func (c *Config) initPayloadSize() int {
 	return int(1024.0 + float32(enum.MaxFrameHeaderSize)*c.windowsMultipleTimesPayloadSize)
 }
 
 // 默认设置
-func (c *config) defaultSetting() {
+func (c *Config) defaultSetting() {
 	c.windowsMultipleTimesPayloadSize = 1.0
 	c.tcpNoDelay = true
 	c.parseMode = ParseModeWindows

@@ -70,7 +70,9 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	if conf.parseMode == ParseModeWindows {
 		// 这里不需要rw，直接使用conn
 		conn, rw, err = hi.Hijack()
-		bufio2.ClearReadWriter(rw)
+		if !conf.disableBufioClearHack {
+			bufio2.ClearReadWriter(rw)
+		}
 		rsp.ClearRsp(w)
 		rw = nil
 	} else {

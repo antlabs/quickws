@@ -364,38 +364,38 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
 }
 
-// 这是一个不安全的方法, writeBuf的格式必须是 14个字节的空白长度+需要写的payload组成
-func (c *Conn) WriteMessageUnsafe(op Opcode, writeBuf []byte) (err error) {
-	// if op == opcode.Text {
-	// 	if !c.utf8Check(writeBuf) {
-	// 		return ErrTextNotUTF8
-	// 	}
-	// }
+// TODO 这是一个不安全的方法, writeBuf的格式必须是 14个字节的空白长度+需要写的payload组成
+// func (c *Conn) WriteMessageUnsafe(op Opcode, writeBuf []byte) (err error) {
+// if op == opcode.Text {
+// 	if !c.utf8Check(writeBuf) {
+// 		return ErrTextNotUTF8
+// 	}
+// }
 
-	// rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
-	// if rsv1 {
-	// 	var out wrapBuffer
-	// 	w := compressNoContextTakeover(&out, defaultCompressionLevel)
-	// 	if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-	// 		return
-	// 	}
+// rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+// if rsv1 {
+// 	var out wrapBuffer
+// 	w := compressNoContextTakeover(&out, defaultCompressionLevel)
+// 	if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
+// 		return
+// 	}
 
-	// 	if err = w.Close(); err != nil {
-	// 		return
-	// 	}
-	// 	writeBuf = out.Bytes()
-	// }
+// 	if err = w.Close(); err != nil {
+// 		return
+// 	}
+// 	writeBuf = out.Bytes()
+// }
 
-	// // f.Opcode = op
-	// // f.PayloadLen = int64(len(writeBuf))
-	// maskValue := uint32(0)
-	// if c.client {
-	// 	maskValue = rand.Uint32()
-	// }
+// // f.Opcode = op
+// // f.PayloadLen = int64(len(writeBuf))
+// maskValue := uint32(0)
+// if c.client {
+// 	maskValue = rand.Uint32()
+// }
 
-	// return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
-	return
-}
+// return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
+// 	return
+// }
 
 func (c *Conn) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)

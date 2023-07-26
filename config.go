@@ -28,6 +28,7 @@ type Config struct {
 	decompression                   bool              // 开启解压缩功能
 	compression                     bool              // 开启压缩功能
 	ignorePong                      bool              // 忽略pong消息
+	disableBufioClearHack           bool              // 关闭bufio的clear hack优化
 	utf8Check                       func([]byte) bool // utf8检查
 	readTimeout                     time.Duration
 	windowsMultipleTimesPayloadSize float32   // 设置几倍的payload大小

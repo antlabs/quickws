@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO 等重写http1.1 解析器, 再把这代码重写下
 package quickws
 
 import (

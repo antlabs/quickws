@@ -18,7 +18,7 @@ import "time"
 
 type ServerOption func(*ConnOption)
 
-// 设置TCP_NODELAY
+// 设置TCP_NODELAY 为false, 开启nagle算法
 func WithServerTCPDelay() ServerOption {
 	return func(o *ConnOption) {
 		o.tcpNoDelay = false
@@ -32,12 +32,14 @@ func WithServerDisableUTF8Check() ServerOption {
 	}
 }
 
+// 设置读超时时间
 func WithServerReadTimeout(t time.Duration) ServerOption {
 	return func(o *ConnOption) {
 		o.readTimeout = t
 	}
 }
 
+// 配置回调函数
 func WithServerCallback(cb Callback) ServerOption {
 	return func(o *ConnOption) {
 		o.Callback = cb
@@ -84,9 +86,8 @@ func WithServerIgnorePong() ServerOption {
 // 只有解析方式是窗口的时候才有效
 func WithWindowsMultipleTimesPayloadSize(mt float32) ServerOption {
 	return func(o *ConnOption) {
-		// 如果mt < 1.0, 直接panic
 		if mt < 1.0 {
-			panic("multipleTimesPayloadSize must >= 1.0")
+			mt = 1.0
 		}
 		o.windowsMultipleTimesPayloadSize = mt
 	}
@@ -103,5 +104,12 @@ func WithWindowsParseMode() ServerOption {
 func WithBufioParseMode() ServerOption {
 	return func(o *ConnOption) {
 		o.parseMode = ParseModeBufio
+	}
+}
+
+// 关闭bufio clear hack优化
+func WithDisableBufioClearHack() ServerOption {
+	return func(o *ConnOption) {
+		o.disableBufioClearHack = true
 	}
 }

@@ -1,4 +1,5 @@
 *swp
+/cover.cov
 autobahn-testsuite
 autobahn-client-testsuite-darwin-arm64
 autobahn-client-testsuite-linux-amd64

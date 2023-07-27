@@ -23,26 +23,15 @@ import (
 )
 
 var (
-	ErrNotFoundHijacker     = errors.New("not found Hijacker")
-	bytesHeaderUpgrade      = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n")
-	bytesSecWebSocketAccept = []byte("Sec-WebSocket-Accept")
-	bytesHeaderExtensions   = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
-	bytesCRLF               = []byte("\r\n")
-	bytesColon              = []byte(": ")
+	ErrNotFoundHijacker   = errors.New("not found Hijacker")
+	bytesHeaderUpgrade    = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:")
+	bytesHeaderExtensions = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
+	bytesCRLF             = []byte("\r\n")
+	bytesColon            = []byte(": ")
 )
 
 type ConnOption struct {
 	Config
-}
-
-func writeHeaderKey(w io.Writer, key []byte) (err error) {
-	if _, err = w.Write(key); err != nil {
-		return
-	}
-	if _, err = w.Write(bytesColon); err != nil {
-		return
-	}
-	return
 }
 
 func writeHeaderVal(w io.Writer, val []byte) (err error) {
@@ -59,14 +48,12 @@ func writeHeaderVal(w io.Writer, val []byte) (err error) {
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
 func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error) {
+	// 写入响应头
+	// 写入Sec-WebSocket-Accept key
 	if _, err = w.Write(bytesHeaderUpgrade); err != nil {
 		return
 	}
 
-	// 写入Sec-WebSocket-Accept key
-	if err = writeHeaderKey(w, bytesSecWebSocketAccept); err != nil {
-		return
-	}
 	v := secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))
 	// 写入Sec-WebSocket-Accept vla
 	if err = writeHeaderVal(w, StringToBytes(v)); err != nil {

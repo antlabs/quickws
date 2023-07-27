@@ -43,7 +43,7 @@ type DialOption struct {
 	Config
 }
 
-func ClientOpt(opts ...ClientOption) *Config {
+func ClientOptionToConf(opts ...ClientOption) *Config {
 	var dial DialOption
 	dial.defaultSetting()
 	for _, o := range opts {
@@ -52,7 +52,7 @@ func ClientOpt(opts ...ClientOption) *Config {
 	return &dial.Config
 }
 
-func DialWithConfig(rawUrl string, conf *Config) (*Conn, error) {
+func DialConf(rawUrl string, conf *Config) (*Conn, error) {
 	var dial DialOption
 	u, err := url.Parse(rawUrl)
 	if err != nil {
@@ -99,7 +99,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 		d.u.Scheme = "http"
 	default:
 		// TODO 返回错误
-		return nil, "", fmt.Errorf("未知的scheme:%s", d.u.Scheme)
+		return nil, "", fmt.Errorf("Unknown scheme, only supports ws:// or wss://: got %s", d.u.Scheme)
 	}
 
 	// 满足4.1

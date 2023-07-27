@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
@@ -112,5 +113,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	if conf.parseMode == ParseModeWindows {
 		fr.Init(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize))
 	}
+
+	conn.SetDeadline(time.Time{})
 	return newConn(conn, false, conf, fr, read, bp), nil
 }

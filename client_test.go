@@ -140,4 +140,47 @@ func Test_Client_Dial(t *testing.T) {
 			fmt.Printf("err: %v\n", err)
 		}
 	})
+
+	t.Run("Dial: valid resp: Sec-WebSocket-Accept fail", func(t *testing.T) {
+		done := make(chan bool, 1)
+		run := int32(0)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			atomic.AddInt32(&run, int32(1))
+			w.Header().Set("Upgrade", "websocket")
+			w.Header().Set("Connection", "Upgrade")
+			w.WriteHeader(101)
+			done <- true
+		}))
+
+		defer ts.Close()
+
+		rawURL := strings.ReplaceAll(ts.URL, "http", "ws")
+		_, err := Dial(rawURL)
+		if err == nil {
+			t.Fatal("should be error")
+		}
+	})
+
+	t.Run("DialConf: valid resp: Sec-WebSocket-Accept fail", func(t *testing.T) {
+		done := make(chan bool, 1)
+		run := int32(0)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			atomic.AddInt32(&run, int32(1))
+			w.Header().Set("Upgrade", "websocket")
+			w.Header().Set("Connection", "Upgrade")
+			w.WriteHeader(101)
+			done <- true
+		}))
+
+		defer ts.Close()
+
+		cnf := ClientOptionToConf()
+		rawURL := strings.ReplaceAll(ts.URL, "http", "ws")
+		_, err := DialConf(rawURL, cnf)
+		if err == nil {
+			t.Fatal("should be error")
+		} else {
+			fmt.Printf("err: %v\n", err)
+		}
+	})
 }

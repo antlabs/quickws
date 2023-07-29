@@ -98,7 +98,6 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	case d.u.Scheme == "ws":
 		d.u.Scheme = "http"
 	default:
-		// TODO 返回错误
 		return nil, "", fmt.Errorf("Unknown scheme, only supports ws:// or wss://: got %s", d.u.Scheme)
 	}
 

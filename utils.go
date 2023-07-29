@@ -17,9 +17,7 @@ package quickws
 import (
 	"crypto/sha1"
 	"encoding/base64"
-	"fmt"
 	"math/rand"
-	"net"
 	"net/http"
 	"reflect"
 	"time"
@@ -59,21 +57,6 @@ func secWebSocketAcceptVal(val string) string {
 	s.Write(uuid)
 	r := s.Sum(nil)
 	return base64.StdEncoding.EncodeToString(r)
-}
-
-// 获取没有绑定服务的端口, 测试代码使用
-func GetNoPortExists() string {
-	startPort := 1000 // 1000以下的端口很多时间需要root权限才能使用
-	for port := startPort; port < 65535; port++ {
-		l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
-		if err != nil {
-			continue
-		}
-		l.Close()
-		return fmt.Sprintf("%d", port)
-	}
-
-	return "0"
 }
 
 // 是否打开解压缩

@@ -22,8 +22,8 @@ import (
 	"testing"
 )
 
-// 测试客户端Dial
-func Test_Client_Dial(t *testing.T) {
+// 测试客户端Dial, 返回的http.Header
+func Test_Client_Dial_Check_Header(t *testing.T) {
 	t.Run("Dial: valid resp: status code fail", func(t *testing.T) {
 		done := make(chan bool, 1)
 		run := int32(0)

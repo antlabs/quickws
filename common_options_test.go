@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package quickws
 
 import (
@@ -22,29 +23,20 @@ import (
 	"time"
 )
 
-type testDefaultCallback struct {
-	DefCallback
-}
-
-func Test_DefaultCallback(t *testing.T) {
-	t.Run("local: default callback", func(t *testing.T) {
+// 测试客户端和服务端都有的配置项
+func Test_CommonOption(t *testing.T) {
+	t.Run("server.local: WithServerOnMessageFunc", func(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := Upgrade(w, r, WithServerCallback(&testDefaultCallback{}))
+			c, err := Upgrade(w, r, WithServerOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+				atomic.AddInt32(&run, int32(1))
+				done <- true
+			}))
 			if err != nil {
 				t.Error(err)
 			}
-			defer c.Close()
 			c.StartReadLoop()
-
-			err = c.WriteMessage(Binary, []byte("hello"))
-			if err != nil {
-				t.Error(err)
-			}
-
-			atomic.AddInt32(&run, int32(1))
-			done <- true
 		}))
 
 		defer ts.Close()
@@ -66,18 +58,18 @@ func Test_DefaultCallback(t *testing.T) {
 		}
 	})
 
-	t.Run("global: default callback", func(t *testing.T) {
+	t.Run("server.global: WithServerOnMessageFunc", func(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := Upgrade(w, r, WithServerCallback(&testDefaultCallback{}))
+			c, err := Upgrade(w, r, WithServerOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+				atomic.AddInt32(&run, int32(1))
+				done <- true
+			}))
 			if err != nil {
 				t.Error(err)
 			}
 			c.StartReadLoop()
-			err = c.WriteMessage(Binary, []byte("hello"))
-			atomic.AddInt32(&run, int32(1))
-			done <- true
 		}))
 
 		defer ts.Close()
@@ -87,7 +79,6 @@ func Test_DefaultCallback(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		defer con.Close()
 
 		con.WriteMessage(Binary, []byte("hello"))
 		select {

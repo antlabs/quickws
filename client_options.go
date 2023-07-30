@@ -22,27 +22,6 @@ import (
 
 type ClientOption func(*DialOption)
 
-// 配置callback
-func WithClientCallback(cb Callback) ClientOption {
-	return func(o *DialOption) {
-		o.Callback = cb
-	}
-}
-
-// 设置TCP_NODELAY
-func WithClientTCPDelay() ClientOption {
-	return func(o *DialOption) {
-		o.tcpNoDelay = false
-	}
-}
-
-// 仅仅配置OnMessae函数
-func WithClientOnMessageFunc(cb OnMessageFunc) ClientOption {
-	return func(o *DialOption) {
-		o.Callback = OnMessageFunc(cb)
-	}
-}
-
 // 配置tls.config
 func WithClientTLSConfig(tls *tls.Config) ClientOption {
 	return func(o *DialOption) {
@@ -61,20 +40,6 @@ func WithClientHTTPHeader(h http.Header) ClientOption {
 func WithClientDialTimeout(t time.Duration) ClientOption {
 	return func(o *DialOption) {
 		o.dialTimeout = t
-	}
-}
-
-// 配置自动回应ping frame, 当收到ping， 回一个pong
-func WithClientReplyPing() ClientOption {
-	return func(o *DialOption) {
-		o.replyPing = true
-	}
-}
-
-// 配置解压缩
-func WithClientDecompression() ClientOption {
-	return func(o *DialOption) {
-		o.decompression = true
 	}
 }
 

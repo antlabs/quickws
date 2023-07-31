@@ -51,8 +51,8 @@ func WithServerDisableUTF8Check() ServerOption {
 	}
 }
 
-func WithClientDisableUTF8Check() ServerOption {
-	return func(o *ConnOption) {
+func WithClientDisableUTF8Check() ClientOption {
+	return func(o *DialOption) {
 		o.utf8Check = func([]byte) bool { return true }
 	}
 }
@@ -87,7 +87,20 @@ func WithClientReplyPing() ClientOption {
 	}
 }
 
-// 6.
+// 6 配置忽略pong消息
+func WithClientIgnorePong() ClientOption {
+	return func(o *DialOption) {
+		o.ignorePong = true
+	}
+}
+
+func WithServerIgnorePong() ServerOption {
+	return func(o *ConnOption) {
+		o.ignorePong = true
+	}
+}
+
+// 7.
 // 设置几倍payload的缓冲区
 // 只有解析方式是窗口的时候才有效
 func WithServerWindowsMultipleTimesPayloadSize(mt float32) ServerOption {
@@ -108,30 +121,18 @@ func WithClientWindowsMultipleTimesPayloadSize(mt float32) ClientOption {
 	}
 }
 
-// 7
-// 默认使用窗口解析方式
+// 8 配置windows解析方式
+// 默认使用窗口解析方式, 以后以后默认解析方式改变过，才有必要使用这个选项
 func WithServerWindowsParseMode() ServerOption {
 	return func(o *ConnOption) {
 		o.parseMode = ParseModeWindows
 	}
 }
 
+// 默认使用窗口解析方式, 以后以后默认解析方式改变过，才有必要使用这个选项
 func WithClientWindowsParseMode() ClientOption {
 	return func(o *DialOption) {
 		o.parseMode = ParseModeWindows
-	}
-}
-
-// 8 配置忽略pong消息
-func WithClientIgnorePong() ClientOption {
-	return func(o *DialOption) {
-		o.ignorePong = true
-	}
-}
-
-func WithServerIgnorePong() ServerOption {
-	return func(o *ConnOption) {
-		o.ignorePong = true
 	}
 }
 

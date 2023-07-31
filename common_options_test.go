@@ -15,6 +15,7 @@
 package quickws
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -127,6 +128,86 @@ func Test_CommonOption(t *testing.T) {
 		}
 	})
 
+	t.Run("3.server.local: WithServerDisableUTF8Check", func(t *testing.T) {
+		run := int32(0)
+		done := make(chan bool, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerDisableUTF8Check(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+				atomic.AddInt32(&run, int32(1))
+				done <- true
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableUTF8Check(), WithClientCallback(&testDefaultCallback{}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		err = con.WriteMessage(Text, []byte{1, 2, 3, 4})
+		if err != nil {
+			t.Error(err)
+		}
+		select {
+		case <-done:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("3.server.global: WithServerDisableUTF8Check", func(t *testing.T) {
+		run := int32(0)
+		done := make(chan bool, 1)
+		upgrade := NewUpgrade(WithServerDisableUTF8Check(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+			atomic.AddInt32(&run, int32(1))
+			done <- true
+		}))
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableUTF8Check(), WithClientCallback(&testDefaultCallback{}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		err = con.WriteMessage(Text, []byte{1, 2, 3, 4})
+		if err != nil {
+			t.Error(err)
+		}
+		select {
+		case <-done:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("3.client: WithClientDisableUTF8Check", func(t *testing.T) {
+		// 3.server.local: WithServerDisableUTF8Check 已经测试过客户端，所以这里留空
+	})
+
 	t.Run("4.server.local: WithServerOnMessageFunc", func(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
@@ -229,6 +310,362 @@ func Test_CommonOption(t *testing.T) {
 		}
 	})
 
+	t.Run("5.server.local: WithServerReplyPing", func(t *testing.T) {
+		run := int32(0)
+		done := make(chan bool, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerReplyPing(), WithServerOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, o Opcode, b []byte) {
+			atomic.AddInt32(&run, int32(1))
+			if o != Pong || bytes.Equal(b, []byte("hello")) {
+				t.Error("need Pong")
+			}
+			done <- true
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+
+		con.StartReadLoop()
+		con.WritePing([]byte("hello"))
+		select {
+		case <-done:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("5.server.global: WithServerReplyPing", func(t *testing.T) {
+		run := int32(0)
+		done := make(chan bool, 1)
+		upgrade := NewUpgrade(WithServerReplyPing(), WithServerOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, o Opcode, b []byte) {
+			atomic.AddInt32(&run, int32(1))
+			if o != Pong || bytes.Equal(b, []byte("hello")) {
+				t.Error("need Pong")
+			}
+			done <- true
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+
+		con.StartReadLoop()
+		err = con.WritePing([]byte("hello"))
+		if err != nil {
+			t.Errorf("WritePing:%v", err)
+		}
+		select {
+		case <-done:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("5.client: WithClientReplyPing", func(t *testing.T) {
+		run := int32(0)
+		done := make(chan bool, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerReplyPing(), WithServerOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+				if mt == Text {
+					c.WritePing([]byte("hello"))
+				} else if mt == Pong {
+				} else {
+					t.Error("unknown opcode")
+				}
+
+				atomic.AddInt32(&run, int32(1))
+				if atomic.LoadInt32(&run) >= 2 {
+					done <- true
+				}
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientReplyPing(), WithClientOnMessageFunc(func(c *Conn, o Opcode, b []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+
+		con.StartReadLoop()
+		con.WriteMessage(Text, []byte("hello"))
+		select {
+		case <-done:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 2 {
+			t.Errorf("run:%d\n", run)
+		}
+	})
+
+	t.Run("7.server.local: WithServerWindowsMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerWindowsParseMode(), WithServerWindowsMultipleTimesPayloadSize(-1), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("7.server.global: WithServerWindowsMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerWindowsParseMode(), WithServerWindowsMultipleTimesPayloadSize(-1), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("7.client: WithServerWindowsMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientWindowsParseMode(), WithClientWindowsMultipleTimesPayloadSize(-1), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+	t.Run("8.server.local: WithServerWindowsParseMode", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerWindowsParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("8.server.global: WithServerWindowsParseMode", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerWindowsParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("8.client: WithClientWindowsParseMode", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientWindowsParseMode(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
 	t.Run("9.server.local: WithServerBufioParseMode", func(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
@@ -308,7 +745,7 @@ func Test_CommonOption(t *testing.T) {
 		}
 	})
 
-	t.Run("9.client: WithClientOnMessageFunc", func(t *testing.T) {
+	t.Run("9.client: WithClientBufioParseMode", func(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -345,5 +782,88 @@ func Test_CommonOption(t *testing.T) {
 		if atomic.LoadInt32(&run) != 1 {
 			t.Error("not run server:method fail")
 		}
+	})
+
+	t.Run("11.server.local: WithServerDisableBufioClearHack", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerDisableBufioClearHack(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("11.server.global: WithServerDisableBufioClearHack", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("11.client: WithClientBufioParseMode", func(t *testing.T) {
+		// 11.server.local 已经测试过客户端，所以这里留空
 	})
 }

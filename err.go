@@ -29,7 +29,7 @@ var (
 	ErrHTTPProtocolNotSupported = errors.New("HTTP protocol not supported")
 
 	ErrOnlyGETSupported     = errors.New("error:Only get methods are supported")
-	ErrMaxControlFrameSize  = errors.New("error:max control frame size > 125")
+	ErrMaxControlFrameSize  = errors.New("error:max control frame size > 125, need <= 125")
 	ErrRsv123               = errors.New("error:rsv1 or rsv2 or rsv3 has a value")
 	ErrOpcode               = errors.New("error:wrong opcode")
 	ErrNOTBeFragmented      = errors.New("error:since control message MUST NOT be fragmented")

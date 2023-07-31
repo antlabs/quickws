@@ -415,6 +415,21 @@ func (c *Conn) WriteCloseTimeout(sc StatusCode, t time.Duration) (err error) {
 	return c.WriteTimeout(opcode.Close, buf, t)
 }
 
+func (c *Conn) WritePing(data []byte) (err error) {
+	return c.WriteControl(Ping, data)
+}
+
+func (c *Conn) WritePong(data []byte) (err error) {
+	return c.WriteControl(Pong, data)
+}
+
+func (c *Conn) WriteControl(op Opcode, data []byte) (err error) {
+	if len(data) > maxControlFrameSize {
+		return ErrMaxControlFrameSize
+	}
+	return c.WriteMessage(op, data)
+}
+
 func (c *Conn) Close() (err error) {
 	c.once.Do(func() {
 		c.bp.Free()

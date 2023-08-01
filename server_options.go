@@ -18,14 +18,14 @@ import "time"
 
 type ServerOption func(*ConnOption)
 
-// 设置读超时时间
+// 1.设置读超时时间
 func WithServerReadTimeout(t time.Duration) ServerOption {
 	return func(o *ConnOption) {
 		o.readTimeout = t
 	}
 }
 
-// 配置压缩和解压缩
+// 2.配置压缩和解压缩
 func WithServerDecompressAndCompress() ServerOption {
 	return func(o *ConnOption) {
 		o.compression = true

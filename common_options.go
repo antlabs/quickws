@@ -13,6 +13,8 @@
 // limitations under the License.
 package quickws
 
+import "unicode/utf8"
+
 // 1. callback
 // 配置客户端callback
 func WithClientCallback(cb Callback) ClientOption {
@@ -45,15 +47,15 @@ func WithServerTCPDelay() ServerOption {
 }
 
 // 3.关闭utf8检查
-func WithServerDisableUTF8Check() ServerOption {
+func WithServerEnableUTF8Check() ServerOption {
 	return func(o *ConnOption) {
-		o.utf8Check = func([]byte) bool { return true }
+		o.utf8Check = utf8.Valid
 	}
 }
 
-func WithClientDisableUTF8Check() ClientOption {
+func WithClientEnableUTF8Check() ClientOption {
 	return func(o *DialOption) {
-		o.utf8Check = func([]byte) bool { return true }
+		o.utf8Check = utf8.Valid
 	}
 }
 

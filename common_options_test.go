@@ -133,7 +133,7 @@ func Test_CommonOption(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := Upgrade(w, r, WithServerDisableUTF8Check(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c, err := Upgrade(w, r, WithServerEnableUTF8Check(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
 				c.WriteMessage(op, payload)
 				atomic.AddInt32(&run, int32(1))
 				done <- true
@@ -147,7 +147,7 @@ func Test_CommonOption(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
-		con, err := Dial(url, WithClientDisableUTF8Check(), WithClientCallback(&testDefaultCallback{}))
+		con, err := Dial(url, WithClientEnableUTF8Check(), WithClientCallback(&testDefaultCallback{}))
 		if err != nil {
 			t.Error(err)
 		}
@@ -169,7 +169,7 @@ func Test_CommonOption(t *testing.T) {
 	t.Run("3.server.global: WithServerDisableUTF8Check", func(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
-		upgrade := NewUpgrade(WithServerDisableUTF8Check(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+		upgrade := NewUpgrade(WithServerEnableUTF8Check(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
 			c.WriteMessage(op, payload)
 			atomic.AddInt32(&run, int32(1))
 			done <- true
@@ -186,7 +186,7 @@ func Test_CommonOption(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
-		con, err := Dial(url, WithClientDisableUTF8Check(), WithClientCallback(&testDefaultCallback{}))
+		con, err := Dial(url, WithClientEnableUTF8Check(), WithClientCallback(&testDefaultCallback{}))
 		if err != nil {
 			t.Error(err)
 		}

@@ -49,6 +49,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		quickws.WithServerDecompression(),
 		quickws.WithServerIgnorePong(),
 		quickws.WithServerCallback(&echoHandler{}),
+		quickws.WithServerEnableUTF8Check(),
 		quickws.WithServerReadTimeout(5*time.Second),
 	)
 	if err != nil {

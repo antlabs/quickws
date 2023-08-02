@@ -16,7 +16,6 @@ package quickws
 
 import (
 	"time"
-	"unicode/utf8"
 
 	"github.com/antlabs/wsutil/enum"
 )
@@ -44,5 +43,6 @@ func (c *Config) defaultSetting() {
 	c.windowsMultipleTimesPayloadSize = 1.0
 	c.tcpNoDelay = true
 	c.parseMode = ParseModeWindows
-	c.utf8Check = utf8.Valid
+	// 对于text消息，默认不检查text 是否为utf8字符
+	c.utf8Check = func(b []byte) bool { return true }
 }

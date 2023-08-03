@@ -361,7 +361,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 		maskValue = rand.Uint32()
 	}
 
-	return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
+	return frame.WriteFrame(&c.fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
 }
 
 // TODO 这是一个不安全的方法, writeBuf的格式必须是 14个字节的空白长度+需要写的payload组成
@@ -428,6 +428,54 @@ func (c *Conn) WriteControl(op Opcode, data []byte) (err error) {
 		return ErrMaxControlFrameSize
 	}
 	return c.WriteMessage(op, data)
+}
+
+// 写分段数据, 目前主要是单元测试使用
+func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单个段最大size*/) (err error) {
+	if len(writeBuf) < maxFragment {
+		c.WriteMessage(op, writeBuf)
+		return
+	}
+
+	if op == opcode.Text {
+		if !c.utf8Check(writeBuf) {
+			return ErrTextNotUTF8
+		}
+	}
+
+	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	if rsv1 {
+		var out wrapBuffer
+		w := compressNoContextTakeover(&out, defaultCompressionLevel)
+		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
+			return
+		}
+
+		if err = w.Close(); err != nil {
+			return
+		}
+		writeBuf = out.Bytes()
+	}
+
+	// f.Opcode = op
+	// f.PayloadLen = int64(len(writeBuf))
+	maskValue := uint32(0)
+	if c.client {
+		maskValue = rand.Uint32()
+	}
+
+	for len(writeBuf) > 0 {
+		if len(writeBuf) > maxFragment {
+			if err := frame.WriteFrame(&c.fw, c.c, writeBuf[:maxFragment], false, rsv1, c.client, op, maskValue); err != nil {
+				return err
+			}
+			writeBuf = writeBuf[maxFragment:]
+			op = Continuation
+			continue
+		}
+		return frame.WriteFrame(&c.fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
+	}
+	return nil
 }
 
 func (c *Conn) Close() (err error) {

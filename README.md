@@ -125,7 +125,7 @@ func main() {
 #### 配置header
 ```go
 func main() {
-	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithHTTPHeader(http.Header{
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientHTTPHeader(http.Header{
 		"h1": "v1",
 		"h2":"v2", 
 	}))
@@ -134,14 +134,14 @@ func main() {
 #### 配置握手时的超时时间
 ```go
 func main() {
-	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithDialTimeout(2 * time.Second))
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientDialTimeout(2 * time.Second))
 }
 ```
 
 #### 配置自动回复ping消息
 ```go
 func main() {
-	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithReplyPing())
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientReplyPing())
 }
 ```
 ### 服务端配置参数

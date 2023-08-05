@@ -31,6 +31,7 @@ type Config struct {
 	utf8Check                       func([]byte) bool // utf8检查
 	readTimeout                     time.Duration
 	windowsMultipleTimesPayloadSize float32   // 设置几倍的payload大小
+	bufioMultipleTimesPayloadSize   float32   // 设置几倍的payload大小
 	parseMode                       parseMode // 解析模式
 }
 

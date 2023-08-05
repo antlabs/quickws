@@ -25,7 +25,9 @@ import (
 	"net"
 	"sync"
 	"time"
+	"unsafe"
 
+	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
@@ -171,6 +173,11 @@ func (c *Conn) readLoop() error {
 
 	var payload []byte
 	if c.read != nil {
+		newSize := int(1024 * c.bufioMultipleTimesPayloadSize)
+		if c.read.Size() < newSize {
+			// TODO sync.Pool管理
+			(*bufio2.Reader2)(unsafe.Pointer(c.read)).ResetBuf(make([]byte, newSize))
+		}
 		payload = *bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
 	}
 	for {

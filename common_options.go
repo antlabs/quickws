@@ -105,6 +105,7 @@ func WithServerIgnorePong() ServerOption {
 // 7.
 // 设置几倍payload的缓冲区
 // 只有解析方式是窗口的时候才有效
+// 如果为1.0就是1024 + 14， 如果是2.0就是2048 + 14
 func WithServerWindowsMultipleTimesPayloadSize(mt float32) ServerOption {
 	return func(o *ConnOption) {
 		if mt < 1.0 {
@@ -176,5 +177,26 @@ func WithServerDisableBufioClearHack() ServerOption {
 func WithClientDisableBufioClearHack() ClientOption {
 	return func(o *DialOption) {
 		o.disableBufioClearHack = true
+	}
+}
+
+// 12 配置多倍payload缓冲区, 1.是1024 2。是2048
+// 为何不让用户自己配置呢，可以和底层的buffer池结合起来，/1024就知道命中哪个缓冲区了, 不需要维护index命中的哪个sync.Pool
+// 如果用户传些奇奇怪怪的数字，就不好办了
+func WithServerBufioMultipleTimesPayloadSize(mt float32) ServerOption {
+	return func(o *ConnOption) {
+		if mt <= 0 {
+			mt = 1.0
+		}
+		o.bufioMultipleTimesPayloadSize = mt
+	}
+}
+
+func WithClientBufioMultipleTimesPayloadSize(mt float32) ClientOption {
+	return func(o *DialOption) {
+		if mt <= 0 {
+			mt = 1.0
+		}
+		o.bufioMultipleTimesPayloadSize = mt
 	}
 }

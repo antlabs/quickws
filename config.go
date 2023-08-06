@@ -30,9 +30,12 @@ type Config struct {
 	disableBufioClearHack           bool              // 关闭bufio的clear hack优化
 	utf8Check                       func([]byte) bool // utf8检查
 	readTimeout                     time.Duration
-	windowsMultipleTimesPayloadSize float32   // 设置几倍的payload大小
-	bufioMultipleTimesPayloadSize   float32   // 设置几倍的payload大小
-	parseMode                       parseMode // 解析模式
+	windowsMultipleTimesPayloadSize float32       // 设置几倍的payload大小
+	bufioMultipleTimesPayloadSize   float32       // 设置几倍的payload大小
+	parseMode                       parseMode     // 解析模式
+	maxDelayWriteNum                int32         // 最大延迟包的个数, 默认值为10
+	delayWriteInitBufferSize        int32         // 延迟写入的初始缓冲区大小, 默认值是8k
+	maxDelayWriteDuration           time.Duration // 最大延迟时间, 默认值是10ms
 }
 
 func (c *Config) initPayloadSize() int {
@@ -41,7 +44,10 @@ func (c *Config) initPayloadSize() int {
 
 // 默认设置
 func (c *Config) defaultSetting() {
+	c.maxDelayWriteNum = 10
 	c.windowsMultipleTimesPayloadSize = 1.0
+	c.delayWriteInitBufferSize = 8 * 1024
+	c.maxDelayWriteDuration = 10 * time.Millisecond
 	c.tcpNoDelay = true
 	c.parseMode = ParseModeWindows
 	// 对于text消息，默认不检查text 是否为utf8字符

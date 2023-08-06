@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -42,8 +43,17 @@ const (
 
 // var _ net.Conn = (*Conn)(nil)
 
+type delayWrite struct {
+	delayNum     int32         //  实验某些特性加的字段
+	delayMu      sync.Mutex    // 实验某些特性加的字段
+	delayBuf     *bytes.Buffer // 实验某些特性加的字段
+	delayTimeout *time.Timer   // 实验某些特性加的字段
+	delayErr     error
+}
+
 type Conn struct {
-	read *bufio.Reader // read 和fr同时只能使用一个
+	closed int32
+	read   *bufio.Reader // read 和fr同时只能使用一个
 	*Config
 	c      net.Conn
 	client bool
@@ -51,7 +61,9 @@ type Conn struct {
 
 	fr fixedreader.FixedReader
 	fw fixedwriter.FixedWriter
-	bp bytespool.BytesPool
+	bp bytespool.BytesPool // 实验某些特性加的字段
+
+	delayWrite
 }
 
 func setNoDelay(c net.Conn, noDelay bool) error {
@@ -68,7 +80,7 @@ func setNoDelay(c net.Conn, noDelay bool) error {
 func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
 	_ = setNoDelay(c, conf.tcpNoDelay)
 
-	return &Conn{
+	con := &Conn{
 		c:      c,
 		client: client,
 		Config: conf,
@@ -76,6 +88,8 @@ func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, 
 		read:   read,
 		bp:     bp,
 	}
+
+	return con
 }
 
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
@@ -341,6 +355,10 @@ func (w *wrapBuffer) Close() error {
 }
 
 func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
+	if atomic.LoadInt32(&c.closed) == 1 {
+		return ErrClosed
+	}
+
 	if op == opcode.Text {
 		if !c.utf8Check(writeBuf) {
 			return ErrTextNotUTF8
@@ -489,6 +507,102 @@ func (c *Conn) Close() (err error) {
 	c.once.Do(func() {
 		c.bp.Free()
 		err = c.c.Close()
+		if c.delayTimeout != nil {
+			c.delayTimeout.Stop()
+			c.delayMu.Lock()
+			c.delayBuf = nil
+			c.delayMu.Unlock()
+		}
+		atomic.StoreInt32(&c.closed, 1)
 	})
 	return
+}
+
+func (c *Conn) writerDelayBufSafe() {
+	c.delayMu.Lock()
+	c.delayErr = c.writerDelayBufInner()
+	c.delayMu.Unlock()
+	return
+}
+
+func (c *Conn) writerDelayBufInner() (err error) {
+	if c.delayBuf == nil {
+		return nil
+	}
+	_, err = c.c.Write(c.delayBuf.Bytes())
+	if c.delayTimeout != nil {
+		c.delayTimeout.Reset(c.maxDelayWriteDuration)
+	}
+	c.delayNum = 0
+	c.delayBuf.Reset()
+	return
+}
+
+// 延迟写消息
+// 1. 如果缓存的消息超过了多少条数
+// 2. 如果缓存的消费超过了多久的时间
+func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
+	if atomic.LoadInt32(&c.closed) == 1 {
+		return ErrClosed
+	}
+
+	if op == opcode.Text {
+		if !c.utf8Check(writeBuf) {
+			return ErrTextNotUTF8
+		}
+	}
+
+	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	if rsv1 {
+		var out wrapBuffer
+		w := compressNoContextTakeover(&out, defaultCompressionLevel)
+		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
+			return
+		}
+
+		if err = w.Close(); err != nil {
+			return
+		}
+		writeBuf = out.Bytes()
+	}
+
+	// 初始化缓存
+	if c.delayBuf == nil && c.delayWriteInitBufferSize > 0 {
+
+		c.delayMu.Lock()
+		// TODO sync.Pool管理下, 如果size是1k 2k 3k
+		delayBuf := make([]byte, 0, c.delayWriteInitBufferSize)
+		c.delayBuf = bytes.NewBuffer(delayBuf)
+		c.delayMu.Unlock()
+	}
+	// 初始化定时器
+	if c.delayTimeout == nil && c.maxDelayWriteDuration > 0 {
+		c.delayTimeout = time.AfterFunc(c.maxDelayWriteDuration, c.writerDelayBufSafe)
+	}
+
+	// 缓存的消息超过最大值, 则直接写入
+	c.delayMu.Lock()
+	if c.delayNum+1 == c.maxDelayWriteNum {
+		err = c.writerDelayBufInner()
+		c.delayMu.Unlock()
+		return err
+	}
+	c.delayMu.Unlock()
+
+	maskValue := uint32(0)
+	if c.client {
+		maskValue = rand.Uint32()
+	}
+
+	// go func() {
+	// 为了平衡生产者，消费者的速度，这里不再使用协程
+
+	c.delayMu.Lock()
+	if c.delayBuf != nil {
+		frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
+	}
+	c.delayNum++
+	c.delayMu.Unlock()
+	// }()
+	return nil
 }

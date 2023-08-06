@@ -13,7 +13,10 @@
 // limitations under the License.
 package quickws
 
-import "unicode/utf8"
+import (
+	"time"
+	"unicode/utf8"
+)
 
 // 1. callback
 // 配置客户端callback
@@ -198,5 +201,27 @@ func WithClientBufioMultipleTimesPayloadSize(mt float32) ClientOption {
 			mt = 1.0
 		}
 		o.bufioMultipleTimesPayloadSize = mt
+	}
+}
+
+// 13. 配置延迟发送
+// 配置延迟最大发送时间
+func WithServerMaxDelayWriteDuration(d time.Duration) ServerOption {
+	return func(o *ConnOption) {
+		o.maxDelayWriteDuration = d
+	}
+}
+
+// 14. 配置最大延迟个数
+func WithServerMaxDelayWriteNum(n int32) ServerOption {
+	return func(o *ConnOption) {
+		o.maxDelayWriteNum = n
+	}
+}
+
+// 15. 配置延迟包的初始化buffer大小
+func WithServerDelayWriteInitBufferSize(n int32) ServerOption {
+	return func(o *ConnOption) {
+		o.delayWriteInitBufferSize = n
 	}
 }

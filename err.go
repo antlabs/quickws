@@ -17,6 +17,9 @@ package quickws
 import "errors"
 
 var (
+	// conn已经被关闭
+	ErrClosed = errors.New("closed")
+
 	ErrWrongStatusCode      = errors.New("Wrong status code")
 	ErrUpgradeFieldValue    = errors.New("The value of the upgrade field is not 'websocket'")
 	ErrConnectionFieldValue = errors.New("The value of the connection field is not 'upgrade'")

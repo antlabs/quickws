@@ -212,16 +212,38 @@ func WithServerMaxDelayWriteDuration(d time.Duration) ServerOption {
 	}
 }
 
-// 14. 配置最大延迟个数
+// 13. 配置延迟发送
+// 配置延迟最大发送时间
+func WithClientMaxDelayWriteDuration(d time.Duration) ClientOption {
+	return func(o *DialOption) {
+		o.maxDelayWriteDuration = d
+	}
+}
+
+// 14.1 配置最大延迟个数.server
 func WithServerMaxDelayWriteNum(n int32) ServerOption {
 	return func(o *ConnOption) {
 		o.maxDelayWriteNum = n
 	}
 }
 
-// 15. 配置延迟包的初始化buffer大小
+// 14.2 配置最大延迟个数.client
+func WithClientMaxDelayWriteNum(n int32) ClientOption {
+	return func(o *DialOption) {
+		o.maxDelayWriteNum = n
+	}
+}
+
+// 15.1 配置延迟包的初始化buffer大小
 func WithServerDelayWriteInitBufferSize(n int32) ServerOption {
 	return func(o *ConnOption) {
+		o.delayWriteInitBufferSize = n
+	}
+}
+
+// 15.2 配置延迟包的初始化buffer大小
+func WithClientDelayWriteInitBufferSize(n int32) ClientOption {
+	return func(o *DialOption) {
 		o.delayWriteInitBufferSize = n
 	}
 }

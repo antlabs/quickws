@@ -991,4 +991,253 @@ func Test_CommonOption(t *testing.T) {
 	t.Run("11.client: WithClientBufioParseMode", func(t *testing.T) {
 		// 11.server.local 已经测试过客户端，所以这里留空
 	})
+
+	t.Run("12.server.local: WithServerBufioMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerWindowsParseMode(), WithServerBufioMultipleTimesPayloadSize(-1) /*这里写-1只是为了代码覆盖度测试*/, WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("12.server.global: WithServerBufioMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerWindowsParseMode(), WithServerBufioMultipleTimesPayloadSize(-1), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("12.client: WithServerBufioMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientWindowsParseMode(), WithClientBufioMultipleTimesPayloadSize(-1), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("13-15.server.local: WithServerBufioMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerMaxDelayWriteDuration(time.Millisecond*20), WithServerMaxDelayWriteNum(3), WithServerDelayWriteInitBufferSize(4096), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessageDelay(op, payload)
+				c.WriteMessageDelay(op, payload)
+				c.WriteMessageDelay(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			if run == 3 {
+			}
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		for i := 0; i < 3; i++ {
+			select {
+			case d := <-data:
+				if d != "hello" {
+					t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+				}
+			case <-time.After(1000 * time.Millisecond):
+			}
+		}
+		if atomic.LoadInt32(&run) != 3 {
+			t.Errorf("not run server:method fail:%d\n", atomic.LoadInt32(&run))
+		}
+	})
+
+	t.Run("13-15.server.global: WithServerBufioMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerMaxDelayWriteDuration(time.Millisecond*20), WithServerMaxDelayWriteNum(3), WithServerDelayWriteInitBufferSize(4096), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessageDelay(op, payload)
+			c.WriteMessageDelay(op, payload)
+			c.WriteMessageDelay(op, payload)
+		}))
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 3 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("13-15.client: WithServerBufioMultipleTimesPayloadSize", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				// c.WriteMessage(op, payload)
+				atomic.AddInt32(&run, int32(1))
+				data <- string(payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientMaxDelayWriteDuration(10*time.Millisecond), WithClientMaxDelayWriteNum(3), WithClientWindowsParseMode(), WithClientDelayWriteInitBufferSize(4096),
+			WithClientOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessageDelay(op, []byte("hello"))
+				c.WriteMessageDelay(op, []byte("hello"))
+				c.WriteMessageDelay(op, []byte("hello"))
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
 }

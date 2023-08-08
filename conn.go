@@ -43,17 +43,18 @@ const (
 
 // var _ net.Conn = (*Conn)(nil)
 
+// 延迟写
 type delayWrite struct {
-	delayNum     int32         //  实验某些特性加的字段
-	delayMu      sync.Mutex    // 实验某些特性加的字段
-	delayBuf     *bytes.Buffer // 实验某些特性加的字段
-	delayTimeout *time.Timer   // 实验某些特性加的字段
+	delayNum     int32         // 控制延迟写的数量
+	delayMu      sync.Mutex    // 延迟写的锁
+	delayBuf     *bytes.Buffer // 延迟写的缓冲区
+	delayTimeout *time.Timer   // 延迟写的定时器
 	delayErr     error
 }
 
 type Conn struct {
 	closed int32
-	read   *bufio.Reader // read 和fr同时只能使用一个
+	br     *bufio.Reader // read 和fr同时只能使用一个
 	*Config
 	c      net.Conn
 	client bool
@@ -85,7 +86,7 @@ func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, 
 		client: client,
 		Config: conf,
 		fr:     fr,
-		read:   read,
+		br:     read,
 		bp:     bp,
 	}
 
@@ -150,7 +151,7 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, payload
 	if c.fr.IsInit() {
 		f, err = frame.ReadFrameFromWindows(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
 	} else {
-		f, err = frame.ReadFrameFromReader(c.read, headArray, payload)
+		f, err = frame.ReadFrameFromReader(c.br, headArray, payload)
 	}
 	if err != nil {
 		c.Callback.OnClose(c, err)
@@ -186,11 +187,11 @@ func (c *Conn) readLoop() error {
 	var headArray [enum.MaxFrameHeaderSize]byte
 
 	var payload []byte
-	if c.read != nil {
+	if c.br != nil {
 		newSize := int(1024 * c.bufioMultipleTimesPayloadSize)
-		if c.read.Size() < newSize {
+		if c.br.Size() < newSize {
 			// TODO sync.Pool管理
-			(*bufio2.Reader2)(unsafe.Pointer(c.read)).ResetBuf(make([]byte, newSize))
+			(*bufio2.Reader2)(unsafe.Pointer(c.br)).ResetBuf(make([]byte, newSize))
 		}
 		payload = *bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
 	}
@@ -580,19 +581,19 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 		c.delayTimeout = time.AfterFunc(c.maxDelayWriteDuration, c.writerDelayBufSafe)
 	}
 
+	maskValue := uint32(0)
+	if c.client {
+		maskValue = rand.Uint32()
+	}
 	// 缓存的消息超过最大值, 则直接写入
 	c.delayMu.Lock()
 	if c.delayNum+1 == c.maxDelayWriteNum {
+		frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 		err = c.writerDelayBufInner()
 		c.delayMu.Unlock()
 		return err
 	}
 	c.delayMu.Unlock()
-
-	maskValue := uint32(0)
-	if c.client {
-		maskValue = rand.Uint32()
-	}
 
 	// go func() {
 	// 为了平衡生产者，消费者的速度，这里不再使用协程
@@ -601,7 +602,7 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	if c.delayBuf != nil {
 		frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 	}
-	c.delayNum++
+	c.delayNum++ // 对记数计+1
 	c.delayMu.Unlock()
 	// }()
 	return nil

@@ -541,9 +541,10 @@ func (c *Conn) writerDelayBufInner() (err error) {
 	return
 }
 
-// 延迟写消息
+// 延迟写消息, 对流量密集型的场景有用
 // 1. 如果缓存的消息超过了多少条数
 // 2. 如果缓存的消费超过了多久的时间
+// 3. TODO 最大缓存多少字节
 func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	if atomic.LoadInt32(&c.closed) == 1 {
 		return ErrClosed

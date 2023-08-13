@@ -234,6 +234,7 @@ type testPingPongCloseHandler struct {
 }
 
 func (t *testPingPongCloseHandler) OnClose(c *Conn, err error) {
+	fmt.Printf("%s\n", err.Error())
 	atomic.AddInt32(&t.run, 1)
 	t.data <- "eof"
 }

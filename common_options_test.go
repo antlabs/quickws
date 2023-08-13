@@ -1203,7 +1203,7 @@ func Test_CommonOption(t *testing.T) {
 		data := make(chan string, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := Upgrade(w, r, WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-				// c.WriteMessage(op, payload)
+				c.WriteMessage(op, payload)
 				atomic.AddInt32(&run, int32(1))
 				data <- string(payload)
 			}))

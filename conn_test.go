@@ -226,3 +226,57 @@ func TestFragmentFrame(t *testing.T) {
 		}
 	})
 }
+
+type testPingPongCloseHandler struct {
+	DefCallback
+	run  int32
+	data chan string
+}
+
+func (t *testPingPongCloseHandler) OnClose(c *Conn, err error) {
+	atomic.AddInt32(&t.run, 1)
+	t.data <- "eof"
+}
+
+// 测试ping pong close信息
+func TestPingPongClose(t *testing.T) {
+	// 写一个超过maxControlFrameSize的消息
+	t.Run("1.>maxControlFrameSize.fail", func(t *testing.T) {
+		run := int32(0)
+		var shandler testPingPongCloseHandler
+		shandler.data = make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerCallback(&shandler))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Close, bytes.Repeat([]byte("a"), maxControlFrameSize+3))
+		con.writeFragment(Binary, []byte("hello"), 1)
+		con.StartReadLoop()
+		select {
+		case d := <-shandler.data:
+			if d != "eof" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&shandler.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+}

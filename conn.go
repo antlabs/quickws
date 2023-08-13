@@ -569,19 +569,19 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 		writeBuf = out.Bytes()
 	}
 
+	c.delayMu.Lock()
 	// 初始化缓存
 	if c.delayBuf == nil && c.delayWriteInitBufferSize > 0 {
 
-		c.delayMu.Lock()
 		// TODO sync.Pool管理下, 如果size是1k 2k 3k
 		delayBuf := make([]byte, 0, c.delayWriteInitBufferSize)
 		c.delayBuf = bytes.NewBuffer(delayBuf)
-		c.delayMu.Unlock()
 	}
 	// 初始化定时器
 	if c.delayTimeout == nil && c.maxDelayWriteDuration > 0 {
 		c.delayTimeout = time.AfterFunc(c.maxDelayWriteDuration, c.writerDelayBufSafe)
 	}
+	c.delayMu.Unlock()
 
 	maskValue := uint32(0)
 	if c.client {
@@ -595,12 +595,9 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 		c.delayMu.Unlock()
 		return err
 	}
-	c.delayMu.Unlock()
 
-	// go func() {
-	// 为了平衡生产者，消费者的速度，这里不再使用协程
+	// 为了平衡生产者，消费者的速度，这里不使用协程
 
-	c.delayMu.Lock()
 	if c.delayBuf != nil {
 		frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 	}

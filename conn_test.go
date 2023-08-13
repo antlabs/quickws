@@ -443,6 +443,8 @@ func TestPingPongClose(t *testing.T) {
 			TooBigMessage,
 			NoExtensions,
 			ServerTerminating,
+			1004,
+			3000,
 		}
 
 		for _, st := range statusCodes {

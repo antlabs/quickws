@@ -379,7 +379,83 @@ func TestPingPongClose(t *testing.T) {
 		}
 		defer con.Close()
 
-		con.WriteMessage(Close, []byte{1, 2, 3, 4})
+		con.WriteMessage(Close, []byte{128, 129, 130, 131})
+		con.StartReadLoop()
+		select {
+		case d := <-shandler.data:
+			if d != "eof" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&shandler.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("6.WriteClose status code.fail", func(t *testing.T) {
+		run := int32(0)
+		var shandler testPingPongCloseHandler
+		shandler.data = make(chan string, 1)
+		upgrade := NewUpgrade(WithServerEnableUTF8Check(), WithServerBufioParseMode(), WithServerCallback(&shandler))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		var badSc StatusCode = 3
+		con.WriteCloseTimeout(badSc, 10*time.Second)
+		con.StartReadLoop()
+		select {
+		case d := <-shandler.data:
+			if d != "eof" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&shandler.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+	t.Run("7.WriteClose", func(t *testing.T) {
+		run := int32(0)
+		var shandler testPingPongCloseHandler
+		shandler.data = make(chan string, 1)
+		upgrade := NewUpgrade(WithServerEnableUTF8Check(), WithServerBufioParseMode(), WithServerCallback(&shandler))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteCloseTimeout(NormalClosure, 10*time.Second)
 		con.StartReadLoop()
 		select {
 		case d := <-shandler.data:

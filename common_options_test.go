@@ -909,6 +909,49 @@ func Test_CommonOption(t *testing.T) {
 		}
 	})
 
+	t.Run("10.client: WithClientDecompression", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerDecompressAndCompress(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientCompression(), WithClientDecompression(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		err = con.WriteMessage(Binary, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+		}
+
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
 	t.Run("11.server.local: WithServerDisableBufioClearHack", func(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)

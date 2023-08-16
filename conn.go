@@ -193,6 +193,7 @@ func (c *Conn) readLoop() error {
 			// TODO sync.Pool管理
 			(*bufio2.Reader2)(unsafe.Pointer(c.br)).ResetBuf(make([]byte, newSize))
 		}
+		// bufio 模式才会使用payload
 		payload = *bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
 	}
 	for {
@@ -574,7 +575,7 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	// 初始化缓存
 	if c.delayBuf == nil && c.delayWriteInitBufferSize > 0 {
 
-		// TODO sync.Pool管理下, 如果size是1k 2k 3k
+		// TODO: sync.Pool管理下, 如果size是1k 2k 3k
 		delayBuf := make([]byte, 0, c.delayWriteInitBufferSize)
 		c.delayBuf = bytes.NewBuffer(delayBuf)
 	}
@@ -604,6 +605,5 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	}
 	c.delayNum++ // 对记数计+1
 	c.delayMu.Unlock()
-	// }()
 	return nil
 }

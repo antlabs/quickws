@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/antlabs/wsutil/frame"
 	"github.com/antlabs/wsutil/opcode"
 )
 
@@ -193,6 +195,99 @@ func Test_ReadMessage(t *testing.T) {
 		}
 		if atomic.LoadInt32(&client.callbed) != 1 {
 			t.Errorf("not callbed:%d\n", client.callbed)
+		}
+	})
+
+	t.Run("ReadMessage_Fail_Rsv.1", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				c.WriteMessage(op, payload)
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientCompression(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&run, int32(1))
+			data <- string(payload)
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		// err = con.WriteMessage(Binary, []byte("hello"))
+		maskValue := rand.Uint32()
+		err = frame.WriteFrame(&con.fw, con.c, []byte("hello"), true, true, con.client, Binary, maskValue)
+		if err != nil {
+			t.Error(err)
+		}
+
+		con.StartReadLoop()
+		select {
+		case d := <-data:
+			if d != "hello" {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) > 0 {
+			// 需要不运行server
+			t.Errorf("need not run server")
+		}
+	})
+
+	t.Run("ReadMessage_Fail_Rsv.2", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r,
+				// WithServerDecompression(),
+				WithServerDecompressAndCompress(),
+				WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+					c.WriteMessage(op, payload)
+				}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url,
+			WithClientDecompressAndCompress(),
+			WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+				atomic.AddInt32(&run, int32(1))
+				// data <- string(payload)
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		// err = con.WriteMessage(Binary, []byte("hello"))
+		maskValue := rand.Uint32()
+		err = frame.WriteFrame(&con.fw, con.c, []byte("hello"), true, true, con.client, Ping, maskValue)
+		if err != nil {
+			t.Error(err)
+		}
+
+		select {
+		case _ = <-data:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) > 0 {
+			// 需要不运行server
+			t.Errorf("need not run server")
 		}
 	})
 }

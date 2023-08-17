@@ -65,15 +65,15 @@ func (t *testMessageHandler) OnMessage(c *Conn, op opcode.Opcode, msg []byte) {
 		// fmt.Printf(">>>>>%p %s, %#v\n", &msg, message, msg)
 	}
 	if len(msg) < 30 {
-		if bytes.Equal(msg, need) {
-			t.t.Logf(">>>>>%p %s, %#v\n", &msg, message, msg)
+		if !bytes.Equal(msg, need) {
+			t.t.Errorf(">>>>>%p %s, %#v\n", &msg, message, msg)
 		}
 	} else {
 
 		md51 := md5.Sum(need)
 		md52 := md5.Sum(msg)
-		if bytes.Equal(md51[:], md52[:]) {
-			t.t.Logf("md51 %x, md52 %x\n", md51, md52)
+		if !bytes.Equal(md51[:], md52[:]) {
+			t.t.Errorf("md51 %x, md52 %x\n", md51, md52)
 		}
 	}
 	err := c.WriteMessage(op, msg)

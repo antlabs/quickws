@@ -247,3 +247,19 @@ func WithClientDelayWriteInitBufferSize(n int32) ClientOption {
 		o.delayWriteInitBufferSize = n
 	}
 }
+
+// 14. 配置读超时时间
+//
+// 14.1 .设置服务端读超时时间
+func WithServerReadTimeout(t time.Duration) ServerOption {
+	return func(o *ConnOption) {
+		o.readTimeout = t
+	}
+}
+
+// 14.2 .设置客户端读超时时间
+func WithClientReadTimeout(t time.Duration) ClientOption {
+	return func(o *DialOption) {
+		o.readTimeout = t
+	}
+}

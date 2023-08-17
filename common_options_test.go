@@ -27,6 +27,22 @@ import (
 
 var badUTF8 = []byte{128, 129, 130, 131}
 
+type testServerOptionReadTimeout struct {
+	err chan error
+	run int32
+}
+
+func (defcallback *testServerOptionReadTimeout) OnOpen(_ *Conn) {
+}
+
+func (defcallback *testServerOptionReadTimeout) OnMessage(_ *Conn, _ Opcode, _ []byte) {
+}
+
+func (defcallback *testServerOptionReadTimeout) OnClose(c *Conn, err error) {
+	atomic.AddInt32(&defcallback.run, int32(1))
+	defcallback.err <- err
+}
+
 // 测试客户端和服务端都有的配置项
 func Test_CommonOption(t *testing.T) {
 	t.Run("2.server.local: WithServerTCPDelay", func(t *testing.T) {
@@ -1082,7 +1098,8 @@ func Test_CommonOption(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := Upgrade(w, r, WithServerWindowsParseMode(),
+			c, err := Upgrade(w, r,
+				WithServerBufioParseMode(),
 				WithServerBufioMultipleTimesPayloadSize(6), /*这里写-1只是为了代码覆盖度测试*/
 				WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
 					c.WriteMessage(op, payload)
@@ -1333,6 +1350,115 @@ func Test_CommonOption(t *testing.T) {
 		case <-time.After(1000 * time.Millisecond):
 		}
 		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("14.1.WithServerReadTimeout:local-Upgrade", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Text, []byte("hello"))
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(1000 * time.Millisecond):
+			t.Errorf(" Test_ServerOption:WithServerReadTimeout timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+	t.Run("14.2.WithServerReadTimeout", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Text, []byte("hello"))
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Errorf(" Test_ServerOption:WithServerReadTimeout timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("14.3.WithClientReadTimeout", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientReadTimeout(2*time.Second), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Text, []byte("hello"))
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Errorf(" Test_ServerOption:WithServerReadTimeout timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
 			t.Error("not run server:method fail")
 		}
 	})

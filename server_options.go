@@ -14,16 +14,7 @@
 
 package quickws
 
-import "time"
-
 type ServerOption func(*ConnOption)
-
-// 1.设置读超时时间
-func WithServerReadTimeout(t time.Duration) ServerOption {
-	return func(o *ConnOption) {
-		o.readTimeout = t
-	}
-}
 
 // 2.配置压缩和解压缩
 func WithServerDecompressAndCompress() ServerOption {

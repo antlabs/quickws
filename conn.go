@@ -196,6 +196,7 @@ func (c *Conn) readLoop() error {
 		// bufio 模式才会使用payload
 		payload = *bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
 	}
+
 	for {
 
 		// 从网络读取数据
@@ -462,8 +463,7 @@ func (c *Conn) WriteControl(op Opcode, data []byte) (err error) {
 // 写分段数据, 目前主要是单元测试使用
 func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单个段最大size*/) (err error) {
 	if len(writeBuf) < maxFragment {
-		c.WriteMessage(op, writeBuf)
-		return
+		return c.WriteMessage(op, writeBuf)
 	}
 
 	if op == opcode.Text {

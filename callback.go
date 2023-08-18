@@ -32,6 +32,7 @@ func (defcallback *DefCallback) OnMessage(_ *Conn, _ Opcode, _ []byte) {
 func (defcallback *DefCallback) OnClose(_ *Conn, _ error) {
 }
 
+// 只设置OnMessage
 type OnMessageFunc func(*Conn, Opcode, []byte)
 
 func (o OnMessageFunc) OnOpen(_ *Conn) {
@@ -42,4 +43,17 @@ func (o OnMessageFunc) OnMessage(c *Conn, op Opcode, data []byte) {
 }
 
 func (o OnMessageFunc) OnClose(_ *Conn, _ error) {
+}
+
+// 只设置OnClose
+type OnCloseFunc func(*Conn, error)
+
+func (o OnCloseFunc) OnOpen(_ *Conn) {
+}
+
+func (o OnCloseFunc) OnMessage(_ *Conn, _ Opcode, _ []byte) {
+}
+
+func (o OnCloseFunc) OnClose(c *Conn, err error) {
+	o(c, err)
 }

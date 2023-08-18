@@ -1463,4 +1463,46 @@ func Test_CommonOption(t *testing.T) {
 			t.Error("not run server:method fail")
 		}
 	})
+
+	t.Run("17.client.WithClientOnCloseFunc", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerEnableUTF8Check(), WithServerOnCloseFunc(func(c *Conn, err error) {
+			c.Close()
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(),
+			WithClientEnableUTF8Check(), WithClientOnCloseFunc(func(c *Conn, err error) {
+				atomic.AddInt32(&run, 1)
+				data <- err.Error()
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+		// 这里必须要报错
+		err = con.WriteMessage(Text, []byte("hello"))
+		if err != nil {
+			t.Error("not error")
+		}
+		con.StartReadLoop()
+		select {
+		case _ = <-data:
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		if atomic.LoadInt32(&run) != 0 {
+			t.Error("not run server:method fail")
+		}
+	})
 }

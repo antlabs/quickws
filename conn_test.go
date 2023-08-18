@@ -374,6 +374,124 @@ func TestFragmentFrame(t *testing.T) {
 			t.Error("not run server:method fail")
 		}
 	})
+
+	t.Run("FragmentFrame-Small-Buffer", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientEnableUTF8Check(),
+			WithClientDecompressAndCompress(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+				atomic.AddInt32(&run, int32(1))
+				data <- string(payload)
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		sendData := []byte("hell")
+		// 这里必须要报错
+		err = con.writeFragment(Text, sendData, 5)
+		if err != nil {
+			t.Errorf("error:%v", err)
+		}
+
+		con.StartReadLoop()
+
+		select {
+		case d := <-data:
+			if d != string(sendData) {
+				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("FragmentFrame-Client-Not-UTF8", func(t *testing.T) {
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			c.WriteMessage(op, payload)
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientEnableUTF8Check(),
+			WithClientDecompressAndCompress(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		// 这里必须要报错
+		err = con.writeFragment(Text, []byte{128, 129, 130, 131}, 1)
+		if err == nil {
+			t.Error("not error")
+		}
+	})
+
+	t.Run("FragmentFrame-Server-Not-UTF8", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerEnableUTF8Check(), WithServerOnCloseFunc(func(c *Conn, err error) {
+			data <- err.Error()
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(),
+			WithClientDecompressAndCompress(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+		// 这里必须要报错
+		err = con.writeFragment(Text, []byte{128, 129, 130, 131}, 1)
+		if err != nil {
+			t.Error("error")
+		}
+		con.StartReadLoop()
+		select {
+		case _ = <-data:
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		if atomic.LoadInt32(&run) != 0 {
+			t.Error("not run server:method fail")
+		}
+	})
 }
 
 type testPingPongCloseHandler struct {

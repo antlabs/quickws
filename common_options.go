@@ -263,3 +263,18 @@ func WithClientReadTimeout(t time.Duration) ClientOption {
 		o.readTimeout = t
 	}
 }
+
+// 17。 只配置OnClose
+// 17.1 配置服务端OnClose
+func WithServerOnCloseFunc(onClose func(c *Conn, err error)) ServerOption {
+	return func(o *ConnOption) {
+		o.Callback = OnCloseFunc(onClose)
+	}
+}
+
+// 17.2 配置客户端OnClose
+func WithClientOnCloseFunc(onClose func(c *Conn, err error)) ClientOption {
+	return func(o *DialOption) {
+		o.Callback = OnCloseFunc(onClose)
+	}
+}

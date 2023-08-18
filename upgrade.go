@@ -23,7 +23,6 @@ import (
 
 	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
-	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
 	"github.com/antlabs/wsutil/rsp"
 )
@@ -111,7 +110,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	var bp bytespool.BytesPool
 	bp.Init()
 	if conf.parseMode == ParseModeWindows {
-		fr.Init(conn, bytespool.GetBytes(conf.initPayloadSize()+enum.MaxFrameHeaderSize))
+		fr.Init(conn, bytespool.GetBytes(conf.initPayloadSize()))
 	}
 
 	conn.SetDeadline(time.Time{})

@@ -338,7 +338,7 @@ func TestFragmentFrame(t *testing.T) {
 	t.Run("FragmentFrame-Compression", func(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
-		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerDecompression(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
 			c.WriteMessage(op, payload)
 		}))
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -352,7 +352,7 @@ func TestFragmentFrame(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
-		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientDecompressAndCompress(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
 			atomic.AddInt32(&run, int32(1))
 			data <- string(payload)
 		}))

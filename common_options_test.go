@@ -1354,7 +1354,7 @@ func Test_CommonOption(t *testing.T) {
 		}
 	})
 
-	t.Run("14.1.WithServerReadTimeout:local-Upgrade", func(t *testing.T) {
+	t.Run("16.1.WithServerReadTimeout:local-Upgrade", func(t *testing.T) {
 		var tsort testServerOptionReadTimeout
 
 		tsort.err = make(chan error, 1)
@@ -1389,7 +1389,8 @@ func Test_CommonOption(t *testing.T) {
 			t.Error("not run server:method fail")
 		}
 	})
-	t.Run("14.2.WithServerReadTimeout", func(t *testing.T) {
+
+	t.Run("16.2.WithServerReadTimeout", func(t *testing.T) {
 		var tsort testServerOptionReadTimeout
 
 		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))
@@ -1426,7 +1427,7 @@ func Test_CommonOption(t *testing.T) {
 		}
 	})
 
-	t.Run("14.3.WithClientReadTimeout", func(t *testing.T) {
+	t.Run("16.3.WithClientReadTimeout", func(t *testing.T) {
 		var tsort testServerOptionReadTimeout
 
 		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))

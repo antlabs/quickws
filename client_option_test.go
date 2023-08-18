@@ -70,6 +70,7 @@ func Test_ClientOption(t *testing.T) {
 		run := int32(0)
 		ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			v := r.Header.Get("A")
+			atomic.AddInt32(&run, 1)
 			done <- v
 			con, err := Upgrade(w, r)
 			if err != nil {
@@ -78,7 +79,6 @@ func Test_ClientOption(t *testing.T) {
 			}
 
 			defer con.Close()
-			atomic.AddInt32(&run, 1)
 		}))
 
 		defer ts.Close()

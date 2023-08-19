@@ -21,6 +21,10 @@ type (
 	}
 )
 
+type (
+	OnOpenFunc func(*Conn)
+)
+
 type DefCallback struct{}
 
 func (defcallback *DefCallback) OnOpen(_ *Conn) {
@@ -32,7 +36,7 @@ func (defcallback *DefCallback) OnMessage(_ *Conn, _ Opcode, _ []byte) {
 func (defcallback *DefCallback) OnClose(_ *Conn, _ error) {
 }
 
-// 只设置OnMessage
+// 只设置OnMessage, 和OnClose互斥
 type OnMessageFunc func(*Conn, Opcode, []byte)
 
 func (o OnMessageFunc) OnOpen(_ *Conn) {
@@ -45,7 +49,7 @@ func (o OnMessageFunc) OnMessage(c *Conn, op Opcode, data []byte) {
 func (o OnMessageFunc) OnClose(_ *Conn, _ error) {
 }
 
-// 只设置OnClose
+// 只设置OnClose, 和OnMessage互斥
 type OnCloseFunc func(*Conn, error)
 
 func (o OnCloseFunc) OnOpen(_ *Conn) {
@@ -56,4 +60,28 @@ func (o OnCloseFunc) OnMessage(_ *Conn, _ Opcode, _ []byte) {
 
 func (o OnCloseFunc) OnClose(c *Conn, err error) {
 	o(c, err)
+}
+
+type funcToCallback struct {
+	onOpen    func(*Conn)
+	onMessage func(*Conn, Opcode, []byte)
+	onClose   func(*Conn, error)
+}
+
+func (f *funcToCallback) OnOpen(c *Conn) {
+	if f.onOpen != nil {
+		f.onOpen(c)
+	}
+}
+
+func (f *funcToCallback) OnMessage(c *Conn, op Opcode, data []byte) {
+	if f.onMessage != nil {
+		f.onMessage(c, op, data)
+	}
+}
+
+func (f *funcToCallback) OnClose(c *Conn, err error) {
+	if f.onClose != nil {
+		f.onClose(c, err)
+	}
 }

@@ -45,6 +45,58 @@ func (defcallback *testServerOptionReadTimeout) OnClose(c *Conn, err error) {
 
 // 测试客户端和服务端都有的配置项
 func Test_CommonOption(t *testing.T) {
+	t.Run("0.server.local: WithClientCallbackFunc", func(t *testing.T) {
+		run := int32(0)
+		done := make(chan bool, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerTCPDelay(), WithServerOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+				c.WriteMessage(mt, payload)
+				atomic.AddInt32(&run, int32(1))
+			}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		messageDone := make(chan bool, 1)
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		clientRun := int32(0)
+		con, err := Dial(url, WithClientCallbackFunc(func(c *Conn) {
+			atomic.AddInt32(&clientRun, 10)
+		}, func(c *Conn, mt Opcode, payload []byte) {
+			atomic.AddInt32(&clientRun, 100)
+			messageDone <- true
+		}, func(c *Conn, err error) {
+			atomic.AddInt32(&clientRun, 1000)
+			done <- true
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+		con.StartReadLoop()
+		for i := 0; i < 2; i++ {
+			select {
+			case <-messageDone:
+				con.Close()
+			case <-done:
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+
+		if atomic.LoadInt32(&clientRun) != 1110 {
+			t.Errorf("not run client:method fail:%d, need:1110\n", atomic.LoadInt32(&clientRun))
+		}
+	})
+
 	t.Run("2.server.local: WithServerTCPDelay", func(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
@@ -972,9 +1024,10 @@ func Test_CommonOption(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := Upgrade(w, r, WithServerDecompressAndCompress(), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-				c.WriteMessage(op, payload)
-			}))
+			c, err := Upgrade(w, r, WithServerDecompressAndCompress(),
+				WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+					c.WriteMessage(op, payload)
+				}))
 			if err != nil {
 				t.Error(err)
 			}
@@ -1360,14 +1413,26 @@ func Test_CommonOption(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := Upgrade(w, r,
 				WithServerDecompressAndCompress(),
-				WithServerBufioParseMode(),
-				WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				// WithServerBufioParseMode(),
+				WithServerCallbackFunc(nil, func(c *Conn, op Opcode, payload []byte) {
+					if op != Binary {
+						t.Error("opcode error")
+					}
 					c.WriteMessage(op, payload)
-					atomic.AddInt32(&run, int32(1))
-					data <- string(payload)
-				}))
+				}, func(c *Conn, err error) {
+					// t.Errorf("%T\n", err)
+				},
+				))
 			if err != nil {
 				t.Error(err)
+			}
+
+			if !c.compression {
+				t.Error("compression fail")
+			}
+
+			if !c.decompression {
+				t.Error("compression fail")
 			}
 			c.StartReadLoop()
 		}))
@@ -1375,23 +1440,44 @@ func Test_CommonOption(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
-		con, err := Dial(url, WithClientDecompressAndCompress(),
-			WithClientDecompression(),
+		con, err := Dial(url,
+			WithClientDecompressAndCompress(),
 			WithClientMaxDelayWriteDuration(10*time.Millisecond),
 			WithClientMaxDelayWriteNum(3),
 			WithClientWindowsParseMode(),
 			WithClientDelayWriteInitBufferSize(4096),
 			WithClientOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-				c.WriteMessageDelay(op, []byte("hello"))
-				c.WriteMessageDelay(op, []byte("hello"))
-				c.WriteMessageDelay(op, []byte("hello"))
+				if op != Binary {
+					t.Error("opcode error")
+				}
+				err := c.WriteMessageDelay(op, []byte("hello"))
+				if err != nil {
+					t.Error(err)
+				}
+				err = c.WriteMessageDelay(op, []byte("hello"))
+				if err != nil {
+					t.Error(err)
+				}
+				err = c.WriteMessageDelay(op, []byte("hello"))
+				if err != nil {
+					t.Error(err)
+				}
+				data <- "hello"
+				atomic.AddInt32(&run, int32(1))
 			}))
 		if err != nil {
 			t.Error(err)
 		}
 		defer con.Close()
 
-		con.WriteMessage(Binary, []byte("hello"))
+		if !con.compression {
+			t.Error("not compression:method fail")
+		}
+		err = con.WriteMessage(Binary, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+		}
+
 		con.StartReadLoop()
 		select {
 		case d := <-data:

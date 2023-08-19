@@ -18,6 +18,28 @@ import (
 	"unicode/utf8"
 )
 
+// 0. CallbackFunc
+func WithClientCallbackFunc(open OnOpenFunc, m OnMessageFunc, c OnCloseFunc) ClientOption {
+	return func(o *DialOption) {
+		o.Callback = &funcToCallback{
+			onOpen:    open,
+			onMessage: m,
+			onClose:   c,
+		}
+	}
+}
+
+// 配置服务端回调函数
+func WithServerCallbackFunc(open OnOpenFunc, m OnMessageFunc, c OnCloseFunc) ServerOption {
+	return func(o *ConnOption) {
+		o.Callback = &funcToCallback{
+			onOpen:    open,
+			onMessage: m,
+			onClose:   c,
+		}
+	}
+}
+
 // 1. callback
 // 配置客户端callback
 func WithClientCallback(cb Callback) ClientOption {

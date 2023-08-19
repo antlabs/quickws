@@ -542,10 +542,10 @@ func (c *Conn) writerDelayBufInner() (err error) {
 	return
 }
 
-// 延迟写消息, 对流量密集型的场景有用
+// 延迟写消息, 对流量密集型的场景有用 或者开启tcp delay， WithClientTCPDelay WithServerTCPDelay
 // 1. 如果缓存的消息超过了多少条数
 // 2. 如果缓存的消费超过了多久的时间
-// 3. TODO 最大缓存多少字节
+// 3. TODO: 最大缓存多少字节
 func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	if atomic.LoadInt32(&c.closed) == 1 {
 		return ErrClosed
@@ -592,18 +592,21 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	// 缓存的消息超过最大值, 则直接写入
 	c.delayMu.Lock()
 	if c.delayNum+1 == c.maxDelayWriteNum {
-		frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
+		err = frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
+		if err != nil {
+			c.delayMu.Unlock()
+			return err
+		}
 		err = c.writerDelayBufInner()
 		c.delayMu.Unlock()
 		return err
 	}
 
 	// 为了平衡生产者，消费者的速度，这里不使用协程
-
 	if c.delayBuf != nil {
-		frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
+		err = frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 	}
 	c.delayNum++ // 对记数计+1
 	c.delayMu.Unlock()
-	return nil
+	return err
 }

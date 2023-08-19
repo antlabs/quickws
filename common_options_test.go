@@ -1522,6 +1522,38 @@ func Test_CommonOption(t *testing.T) {
 		con.StartReadLoop()
 	})
 
+	t.Run("13-15.client: WithServerBufioMultipleTimesPayloadSize-Compress-Close", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r,
+				WithServerBufioParseMode(),
+				WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url,
+			WithClientEnableUTF8Check(),
+			WithClientOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.Close()
+		err = con.WriteMessageDelay(Text, []byte{128, 129, 130, 131})
+		if err != ErrClosed {
+			t.Error("not Close:method fail")
+		}
+		con.StartReadLoop()
+	})
+
 	t.Run("16.1.WithServerReadTimeout:local-Upgrade", func(t *testing.T) {
 		var tsort testServerOptionReadTimeout
 

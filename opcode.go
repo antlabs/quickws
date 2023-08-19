@@ -32,5 +32,3 @@ const (
 	Ping  = opcode.Ping
 	Pong  = opcode.Pong
 )
-
-var ErrClose = "websocket"

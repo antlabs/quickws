@@ -1557,8 +1557,14 @@ func Test_CommonOption(t *testing.T) {
 		}
 		defer con.Close()
 
-		con.WriteMessageDelay(Text, []byte("hello"))
-		con.WriteMessageDelay(Text, []byte("hello"))
+		err = con.WriteMessageDelay(Text, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+		}
+		err = con.WriteMessageDelay(Text, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+		}
 		con.StartReadLoop()
 		select {
 		case d := <-data:
@@ -1571,6 +1577,7 @@ func Test_CommonOption(t *testing.T) {
 			t.Error("not run server:method fail")
 		}
 	})
+
 	t.Run("13-15.client: WriteMessageDelay-Compress-Close", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := Upgrade(w, r,

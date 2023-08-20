@@ -49,7 +49,7 @@ type delayWrite struct {
 	delayMu      sync.Mutex    // 延迟写的锁
 	delayBuf     *bytes.Buffer // 延迟写的缓冲区
 	delayTimeout *time.Timer   // 延迟写的定时器
-	delayErr     error
+	delayErr     error         // TODO 原子操作
 }
 
 type Conn struct {
@@ -526,7 +526,6 @@ func (c *Conn) writerDelayBufSafe() {
 	c.delayMu.Lock()
 	c.delayErr = c.writerDelayBufInner()
 	c.delayMu.Unlock()
-	return
 }
 
 func (c *Conn) writerDelayBufInner() (err error) {

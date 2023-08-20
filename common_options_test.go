@@ -1545,7 +1545,7 @@ func Test_CommonOption(t *testing.T) {
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
 		con, err := Dial(url, WithClientDecompressAndCompress(),
 			WithClientDecompression(),
-			WithClientMaxDelayWriteDuration(10*time.Millisecond),
+			WithClientMaxDelayWriteDuration(30*time.Millisecond),
 			WithClientMaxDelayWriteNum(3),
 			WithClientWindowsParseMode(),
 			WithClientDelayWriteInitBufferSize(4096),
@@ -1561,10 +1561,6 @@ func Test_CommonOption(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		err = con.WriteMessageDelay(Text, []byte("hello"))
-		if err != nil {
-			t.Error(err)
-		}
 		con.StartReadLoop()
 		select {
 		case d := <-data:
@@ -1572,6 +1568,7 @@ func Test_CommonOption(t *testing.T) {
 				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
 			}
 		case <-time.After(1000 * time.Millisecond):
+			t.Errorf("13-15.client: WriteMessageDelay-timeout-send: timeout \n")
 		}
 		if atomic.LoadInt32(&run) != 1 {
 			t.Error("not run server:method fail")

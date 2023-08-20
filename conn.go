@@ -529,7 +529,7 @@ func (c *Conn) writerDelayBufSafe() {
 }
 
 func (c *Conn) writerDelayBufInner() (err error) {
-	if c.delayBuf == nil {
+	if c.delayBuf == nil || c.delayBuf.Len() == 0 || atomic.LoadInt32(&c.closed) == 1 {
 		return nil
 	}
 	_, err = c.c.Write(c.delayBuf.Bytes())

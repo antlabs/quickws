@@ -1550,7 +1550,6 @@ func Test_CommonOption(t *testing.T) {
 			WithClientWindowsParseMode(),
 			WithClientDelayWriteInitBufferSize(4096),
 			WithClientOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-				// c.WriteMessageDelay(op, []byte("hello"))
 			}))
 		if err != nil {
 			t.Error(err)

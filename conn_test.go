@@ -537,7 +537,7 @@ func Test_WriteControl(t *testing.T) {
 	})
 }
 
-// 测试ping pong close信息
+// 测试ping pong close control信息
 func TestPingPongClose(t *testing.T) {
 	// 写一个超过maxControlFrameSize的消息
 	t.Run("1.>maxControlFrameSize.fail", func(t *testing.T) {
@@ -781,6 +781,47 @@ func TestPingPongClose(t *testing.T) {
 			if atomic.LoadInt32(&shandler.run) != 1 {
 				t.Error("not run server:method fail")
 			}
+		}
+	})
+
+	t.Run("8.fail-control", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerOnCloseFunc(func(c *Conn, err error) {
+			atomic.AddInt32(&run, 1)
+			data <- err.Error()
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(),
+			WithClientEnableUTF8Check(), WithClientOnCloseFunc(func(c *Conn, err error) {
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+		// 这里必须要报错
+		err = con.WriteMessage(4 /*这是rfc保留的frame*/, []byte("hello"))
+		if err != nil {
+			t.Error("not error")
+		}
+		con.StartReadLoop()
+		select {
+		case _ = <-data:
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
 		}
 	})
 }

@@ -370,6 +370,52 @@ func TestFragmentFrame(t *testing.T) {
 		}
 	})
 
+	t.Run("Text-FragmentFrame-Fail", func(t *testing.T) {
+		run := int32(0)
+		data := make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerOnCloseFunc(func(c *Conn, err error) {
+			atomic.AddInt32(&run, int32(1))
+			data <- err.Error()
+		}))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientDisableBufioClearHack(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+		// con.writeFragment(Ping, []byte("hello"), 1)
+
+		maskValue := rand.Uint32()
+		err = frame.WriteFrame(&con.fw, con.c, []byte("h"), false, false, con.client, Text, maskValue)
+		if err != nil {
+			t.Error(err)
+		}
+		maskValue = rand.Uint32()
+		err = frame.WriteFrame(&con.fw, con.c, []byte{}, true, false, con.client, Text, maskValue)
+		if err != nil {
+			t.Error(err)
+		}
+		con.StartReadLoop()
+		select {
+		case <-data:
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
 	// 分段传递，并且压缩
 	t.Run("FragmentFrame-Compression", func(t *testing.T) {
 		run := int32(0)

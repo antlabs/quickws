@@ -226,11 +226,11 @@ func (c *Conn) readLoop() error {
 				if fin {
 					// 解压缩
 					if fragmentFrameHeader.GetRsv1() && c.decompression {
-						tmpeBuf, err := decode(fragmentFrameBuf)
+						tempBuf, err := decode(fragmentFrameBuf)
 						if err != nil {
 							return err
 						}
-						fragmentFrameBuf = tmpeBuf
+						fragmentFrameBuf = tempBuf
 					}
 					// 这里的check按道理应该放到f.Fin前面， 会更符合rfc的标准, 前提是c.utf8Check修改成流式解析
 					// TODO c.utf8Check 修改成流式解析
@@ -392,41 +392,8 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	return frame.WriteFrame(&c.fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
 }
 
-// TODO 这是一个不安全的方法, writeBuf的格式必须是 14个字节的空白长度+需要写的payload组成
-// func (c *Conn) WriteMessageUnsafe(op Opcode, writeBuf []byte) (err error) {
-// if op == opcode.Text {
-// 	if !c.utf8Check(writeBuf) {
-// 		return ErrTextNotUTF8
-// 	}
-// }
-
-// rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
-// if rsv1 {
-// 	var out wrapBuffer
-// 	w := compressNoContextTakeover(&out, defaultCompressionLevel)
-// 	if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-// 		return
-// 	}
-
-// 	if err = w.Close(); err != nil {
-// 		return
-// 	}
-// 	writeBuf = out.Bytes()
-// }
-
-// // f.Opcode = op
-// // f.PayloadLen = int64(len(writeBuf))
-// maskValue := uint32(0)
-// if c.client {
-// 	maskValue = rand.Uint32()
-// }
-
-// return frame.WriteFrame(&c.fw, c.c, writeBuf, rsv1, c.client, op, maskValue)
-// 	return
-// }
-
-func (c *Conn) SetDeadline(t time.Time) error {
-	return c.c.SetDeadline(t)
+func (c *Conn) SetWriteDeadline(t time.Time) error {
+	return c.c.SetWriteDeadline(t)
 }
 
 func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error) {

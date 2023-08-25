@@ -189,7 +189,7 @@ func (c *Conn) readLoop() error {
 	var payload []byte
 	if c.br != nil {
 		newSize := int(1024 * c.bufioMultipleTimesPayloadSize)
-		if c.br.Size() < newSize {
+		if c.br.Size() != newSize {
 			// TODO sync.Pool管理
 			(*bufio2.Reader2)(unsafe.Pointer(c.br)).ResetBuf(make([]byte, newSize))
 		}

@@ -174,7 +174,7 @@ B: 代表主打zero upgrade的库，假如frame的过程处理慢点，
 
 upgrade(90ms) frame(15ms) frame(15ms)  frame(15ms) avg = 33.75ms
 
-简单代入下已经证明了，决定websocket差距的是frame的处理过程。
+简单代入下已经证明了，决定websocket差距的是frame的处理过程，无论是tps还是内存占用quickws在实战中也会证明这个点。所以没有必须也不需要在upgrade 下功夫，常规优化就够了。
 
 
 ### 2.quickws tps如何

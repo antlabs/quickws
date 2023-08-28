@@ -160,17 +160,22 @@ func main() {
 ### 1.为什么quickws不标榜zero upgrade?
 第一：quickws是基于std的方案实现的websocket协议。
 
-第二：原因是zero upgrade 对websocket的性能提升几乎没有影响(同步方式)，所以quickws就没有选择花时优化upgrade过程， 
+第二：原因是zero upgrade 对websocket的性能提升几乎没有影响(同步方式)，所以quickws就没有选择花时间优化upgrade过程， 
 
 直接基于net/http， websocket的协议是整体符合大数定律，一个存活几秒的websocket协议由 upgrade(握手) frame(数据包) frame frame 。。。组成。
 
 所以随着时间的增长, upgrade对整体的影响接近于0，我们用数字代入下。
 
-A: upgrade(100ms) frame(10ms) frame(10ms) frame(10ms) avg = 32.5ms
+A: 代表upgrade可能会慢点，但是frame的过程比较快，比如基于net/http方案的websocket
 
-B: upgrade(90ms) frame(15ms) frame(15ms)  frame(15ms) avg = 33.75ms
+upgrade(100ms) frame(10ms) frame(10ms) frame(10ms) avg = 32.5ms
+
+B: 代表主打zero upgrade的库，假如frame的过程处理慢点，
+
+upgrade(90ms) frame(15ms) frame(15ms)  frame(15ms) avg = 33.75ms
 
 简单代入下已经证明了，决定websocket差距的是frame的处理过程。
+
 
 ### 2.quickws tps如何
 在5800h的cpu上面，tps稳定在47w/s，接近48w/s。比gorilla使用ReadMessage的38.9w/s，快了近9w/s

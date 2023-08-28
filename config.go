@@ -44,6 +44,7 @@ func (c *Config) initPayloadSize() int {
 
 // 默认设置
 func (c *Config) defaultSetting() {
+	c.Callback = &DefCallback{}
 	c.maxDelayWriteNum = 10
 	c.windowsMultipleTimesPayloadSize = 1.0
 	c.delayWriteInitBufferSize = 8 * 1024

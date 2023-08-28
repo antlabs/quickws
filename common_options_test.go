@@ -45,7 +45,77 @@ func (defcallback *testServerOptionReadTimeout) OnClose(c *Conn, err error) {
 
 // 测试客户端和服务端都有的配置项
 func Test_CommonOption(t *testing.T) {
-	t.Run("0.server.local: WithClientCallbackFunc", func(t *testing.T) {
+	t.Run("0.server.local: Without setting WithClientCallbackFunc", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerTCPDelay())
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientCallbackFunc(func(c *Conn) {
+		}, func(c *Conn, mt Opcode, payload []byte) {
+		}, func(c *Conn, err error) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+	})
+
+	t.Run("0.server.global: Without setting WithClientCallbackFunc", func(t *testing.T) {
+		upgrade := NewUpgrade()
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientCallbackFunc(func(c *Conn) {
+		}, func(c *Conn, mt Opcode, payload []byte) {
+		}, func(c *Conn, err error) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+	})
+
+	t.Run("0.server.global: Without setting WithClientCallbackFunc", func(t *testing.T) {
+		upgrade := NewUpgrade()
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url)
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Binary, []byte("hello"))
+	})
+	t.Run("0.client: WithClientCallbackFunc", func(t *testing.T) {
 		run := int32(0)
 		done := make(chan bool, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

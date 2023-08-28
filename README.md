@@ -160,9 +160,9 @@ func main() {
 ### 1.为什么quickws不标榜zero upgrade?
 第一：quickws是基于std的方案实现的websocket协议。
 
-第二：原因是zero upgrade 对websocket的性能提升几乎没有影响(同步方式)，所以quickws就没有选择花时间抛弃std， 
+第二：原因是zero upgrade 对websocket的性能提升几乎没有影响(同步方式)，所以quickws就没有选择花时优化upgrade过程， 
 
-直接从tcp实现zero upgrade， websocket的协议是整体符合大数定律，一个存活几秒的websocket协议由 upgrade(握手) frame(数据包) frame frame 。。。组成。
+直接基于net/http， websocket的协议是整体符合大数定律，一个存活几秒的websocket协议由 upgrade(握手) frame(数据包) frame frame 。。。组成。
 
 所以随着时间的增长, upgrade对整体的影响接近于0，我们用数字代入下。
 

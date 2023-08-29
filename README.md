@@ -23,7 +23,7 @@ quickws是一个极简的websocket库
 	* [服务配置参数](#服务端配置)
 		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
 ## 注意⚠️
-quickws默认返回read buffer的浅引用，如果生命周期超过OnMessage的，需要close一份再使用
+quickws默认返回read buffer的浅引用，如果生命周期超过OnMessage的，需要clone一份再使用
 
 ## Installation
 ```console

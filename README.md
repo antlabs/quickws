@@ -1,5 +1,5 @@
 ## 简介
-quickws是一个极简的websocket库
+quickws是一个高性能的websocket库
 
 ![Go](https://github.com/antlabs/quickws/workflows/Go/badge.svg)
 [![codecov](https://codecov.io/gh/antlabs/quickws/branch/main/graph/badge.svg)](https://codecov.io/gh/antlabs/quickws)

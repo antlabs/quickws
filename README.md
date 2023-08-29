@@ -194,7 +194,7 @@ gobwas.6:
 1s:215995/s 2s:279405/s 3s:302249/s 4s:312545/s 5s:318922/s 6s:323800/s 7s:326908/s 8s:329977/s 9s:330959/s 10s:331510/s 11s:331911/s 12s:332396/s 13s:332418/s 14s:332887/s 15s:333198/s 16s:333390/s 17s:333550/s
 ```
 ### 3.quickws 流量测试数据如何 ?
-在5800h的cpu上面。
+在5800h的cpu上面, 同尺寸read buffer(4k), 对比默认用法，quickws在30s处理119GB数据，gorilla处理48GB数据。
 * quickws
 ```
 quickws.windows.tcp.delay.4x:

@@ -40,24 +40,25 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
 	"github.com/antlabs/quickws"
 )
 
 type echoHandler struct{}
 
 func (e *echoHandler) OnOpen(c *quickws.Conn) {
-	fmt.Println("OnOpen:", c)
+	fmt.Println("OnOpen:\n")
 }
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
-	fmt.Println("OnMessage:", c, msg, op)
+	fmt.Printf("OnMessage: %s, %v\n", msg, op)
 	if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
 		fmt.Println("write fail:", err)
 	}
 }
 
 func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
-	fmt.Println("OnClose:", c, err)
+	fmt.Println("OnClose: %v", err)
 }
 
 // echo测试服务
@@ -79,7 +80,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", echo)
 
-	http.ListenAndServe(":9001", nil)
+	http.ListenAndServe(":8080", nil)
 }
 
 ```
@@ -89,39 +90,42 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/antlabs/quickws"
+	"github.com/antlabs/wsutil/opcode"
 )
 
-type echoHandler struct{}
+type handler struct{}
 
-func (e *echoHandler) OnOpen(c *quickws.Conn) {
-	fmt.Println("OnOpen:", c)
+func (h *handler) OnOpen(c *quickws.Conn) {
+	fmt.Printf("客户端连接成功\n")
 }
 
-func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
-	fmt.Println("OnMessage:", c, msg, op)
-	if err := c.WriteTimeout(op, msg, 3*time.Second); err != nil {
-		fmt.Println("write fail:", err)
-	}
+func (h *handler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
+	// 如果msg的生命周期不是在OnMessage中结束，需要拷贝一份
+	// newMsg := makc([]byte, len(msg))
+	// copy(newMsg, msg)
+
+	fmt.Printf("收到服务端消息:%s\n", msg)
+	c.WriteMessage(op, msg)
+	time.Sleep(time.Second)
 }
 
-func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
-	fmt.Println("OnClose:", c, err)
+func (h *handler) OnClose(c *quickws.Conn, err error) {
+	fmt.Printf("客户端端连接关闭:%v\n", err)
 }
 
 func main() {
-	c, err := quickws.Dial("ws://127.0.0.1:12345/test")
+	c, err := quickws.Dial("ws://127.0.0.1:8080/", quickws.WithClientCallback(&handler{}))
 	if err != nil {
-		fmt.Printf("err = %v\n", err)
+		fmt.Printf("连接失败:%v\n", err)
 		return
 	}
 
-    c.WriteMessage(quickws.Text, []byte("hello")])
+	c.WriteMessage(opcode.Text, []byte("hello"))
 	c.ReadLoop()
-
 }
-
 ```
 
 ## 配置函数

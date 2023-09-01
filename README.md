@@ -13,7 +13,8 @@ quickws是一个高性能的websocket库
 ## 内容
 * [安装](#Installation)
 * [例子](#example)
-	* [服务端](#服务端)
+	* [标准库服务端](#标准库服务端)
+	* [gin服务端](#gin服务端)
 	* [客户端](#客户端)
 * [配置函数](#配置函数)
 	* [客户端配置参数](#客户端配置)
@@ -31,7 +32,7 @@ go get github.com/antlabs/quickws
 ```
 
 ## example
-### 服务端
+### 标准库服务端
 ```go
 
 package main
@@ -83,6 +84,49 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
+```
+### gin服务端
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/antlabs/quickws"
+	"github.com/gin-gonic/gin"
+)
+
+type handler struct{}
+
+func (h *handler) OnOpen(c *quickws.Conn) {
+	fmt.Printf("服务端收到一个新的连接")
+}
+
+func (h *handler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
+	// 如果msg的生命周期不是在OnMessage中结束，需要拷贝一份
+	// newMsg := makc([]byte, len(msg))
+	// copy(newMsg, msg)
+
+	fmt.Printf("收到客户端消息:%s\n", msg)
+	c.WriteMessage(op, msg)
+	// os.Stdout.Write(msg)
+}
+
+func (h *handler) OnClose(c *quickws.Conn, err error) {
+	fmt.Printf("服务端连接关闭:%v\n", err)
+}
+
+func main() {
+	r := gin.Default()
+	r.GET("/", func(c *gin.Context) {
+		con, err := quickws.Upgrade(c.Writer, c.Request, quickws.WithServerCallback(&handler{}))
+		if err != nil {
+			return
+		}
+		con.StartReadLoop()
+	})
+	r.Run()
+}
 ```
 ### 客户端
 ```go

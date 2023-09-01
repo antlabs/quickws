@@ -24,7 +24,6 @@ import (
 	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/fixedreader"
-	"github.com/antlabs/wsutil/rsp"
 )
 
 type UpgradeServer struct {
@@ -73,7 +72,8 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		if !conf.disableBufioClearHack {
 			bufio2.ClearReadWriter(rw)
 		}
-		rsp.ClearRsp(w)
+		// TODO
+		// rsp.ClearRsp(w)
 		rw = nil
 	} else {
 		var rw *bufio.ReadWriter

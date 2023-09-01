@@ -61,7 +61,7 @@ type Conn struct {
 	once   sync.Once
 
 	fr fixedreader.FixedReader
-	fw fixedwriter.FixedWriter
+	// fw fixedwriter.FixedWriter
 	bp bytespool.BytesPool // 实验某些特性加的字段
 
 	delayWrite
@@ -389,7 +389,8 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 		maskValue = rand.Uint32()
 	}
 
-	return frame.WriteFrame(&c.fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
+	var fw fixedwriter.FixedWriter
+	return frame.WriteFrame(&fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
 }
 
 func (c *Conn) SetWriteDeadline(t time.Time) error {
@@ -460,16 +461,17 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 		maskValue = rand.Uint32()
 	}
 
+	var fw fixedwriter.FixedWriter
 	for len(writeBuf) > 0 {
 		if len(writeBuf) > maxFragment {
-			if err := frame.WriteFrame(&c.fw, c.c, writeBuf[:maxFragment], false, rsv1, c.client, op, maskValue); err != nil {
+			if err := frame.WriteFrame(&fw, c.c, writeBuf[:maxFragment], false, rsv1, c.client, op, maskValue); err != nil {
 				return err
 			}
 			writeBuf = writeBuf[maxFragment:]
 			op = Continuation
 			continue
 		}
-		return frame.WriteFrame(&c.fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
+		return frame.WriteFrame(&fw, c.c, writeBuf, true, rsv1, c.client, op, maskValue)
 	}
 	return nil
 }

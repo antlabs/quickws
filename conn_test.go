@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/antlabs/wsutil/fixedwriter"
 	"github.com/antlabs/wsutil/frame"
 	"github.com/antlabs/wsutil/opcode"
 )
@@ -225,7 +226,8 @@ func Test_ReadMessage(t *testing.T) {
 
 		// err = con.WriteMessage(Binary, []byte("hello"))
 		maskValue := rand.Uint32()
-		err = frame.WriteFrame(&con.fw, con.c, []byte("hello"), true, true, con.client, Binary, maskValue)
+		var fw fixedwriter.FixedWriter
+		err = frame.WriteFrame(&fw, con.c, []byte("hello"), true, true, con.client, Binary, maskValue)
 		if err != nil {
 			t.Error(err)
 		}
@@ -276,7 +278,8 @@ func Test_ReadMessage(t *testing.T) {
 
 		// err = con.WriteMessage(Binary, []byte("hello"))
 		maskValue := rand.Uint32()
-		err = frame.WriteFrame(&con.fw, con.c, []byte("hello"), true, true, con.client, Ping, maskValue)
+		var fw fixedwriter.FixedWriter
+		err = frame.WriteFrame(&fw, con.c, []byte("hello"), true, true, con.client, Ping, maskValue)
 		if err != nil {
 			t.Error(err)
 		}
@@ -397,12 +400,13 @@ func TestFragmentFrame(t *testing.T) {
 		// con.writeFragment(Ping, []byte("hello"), 1)
 
 		maskValue := rand.Uint32()
-		err = frame.WriteFrame(&con.fw, con.c, []byte("h"), false, false, con.client, Text, maskValue)
+		var fw fixedwriter.FixedWriter
+		err = frame.WriteFrame(&fw, con.c, []byte("h"), false, false, con.client, Text, maskValue)
 		if err != nil {
 			t.Error(err)
 		}
 		maskValue = rand.Uint32()
-		err = frame.WriteFrame(&con.fw, con.c, []byte{}, true, false, con.client, Text, maskValue)
+		err = frame.WriteFrame(&fw, con.c, []byte{}, true, false, con.client, Text, maskValue)
 		if err != nil {
 			t.Error(err)
 		}

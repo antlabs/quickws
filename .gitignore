@@ -1,4 +1,5 @@
 *swp
+/coverage.out
 /cover.cov
 autobahn-testsuite
 autobahn-client-testsuite-darwin-arm64

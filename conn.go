@@ -480,12 +480,12 @@ func (c *Conn) Close() (err error) {
 	c.once.Do(func() {
 		c.bp.Free()
 		err = c.c.Close()
+		c.delayMu.Lock()
 		if c.delayTimeout != nil {
 			c.delayTimeout.Stop()
-			c.delayMu.Lock()
 			c.delayBuf = nil
-			c.delayMu.Unlock()
 		}
+		c.delayMu.Unlock()
 		atomic.StoreInt32(&c.closed, 1)
 	})
 	return
@@ -510,7 +510,10 @@ func (c *Conn) writerDelayBufInner() (err error) {
 	return
 }
 
-// 延迟写消息, 对流量密集型的场景有用 或者开启tcp delay， WithClientTCPDelay WithServerTCPDelay
+// 对于流量场景这个版本推荐开启tcp delay 方法：WithClientTCPDelay() WithServerTCPDelay()
+
+// 该函数目前是研究性质的尝试
+// 延迟写消息, 对流量密集型的场景有用 或者开启tcp delay，
 // 1. 如果缓存的消息超过了多少条数
 // 2. 如果缓存的消费超过了多久的时间
 // 3. TODO: 最大缓存多少字节

@@ -15,6 +15,7 @@
 package quickws
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/antlabs/wsutil/enum"
@@ -36,6 +37,7 @@ type Config struct {
 	maxDelayWriteNum                int32         // 最大延迟包的个数, 默认值为10
 	delayWriteInitBufferSize        int32         // 延迟写入的初始缓冲区大小, 默认值是8k
 	maxDelayWriteDuration           time.Duration // 最大延迟时间, 默认值是10ms
+	bindClientHttpHeader            *http.Header  // 握手成功之后, 客户端获取http.Header,
 }
 
 func (c *Config) initPayloadSize() int {

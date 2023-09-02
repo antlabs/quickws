@@ -22,38 +22,45 @@ import (
 
 type ClientOption func(*DialOption)
 
-// 配置tls.config
+// 1.配置tls.config
 func WithClientTLSConfig(tls *tls.Config) ClientOption {
 	return func(o *DialOption) {
 		o.tlsConfig = tls
 	}
 }
 
-// 配置http.Header
+// 2.配置http.Header
 func WithClientHTTPHeader(h http.Header) ClientOption {
 	return func(o *DialOption) {
 		o.Header = h
 	}
 }
 
-// 配置握手时的timeout
+// 3.配置握手时的timeout
 func WithClientDialTimeout(t time.Duration) ClientOption {
 	return func(o *DialOption) {
 		o.dialTimeout = t
 	}
 }
 
-// 配置压缩
+// 4.配置压缩
 func WithClientCompression() ClientOption {
 	return func(o *DialOption) {
 		o.compression = true
 	}
 }
 
-// 配置压缩和解压缩
+// 5.配置压缩和解压缩
 func WithClientDecompressAndCompress() ClientOption {
 	return func(o *DialOption) {
 		o.compression = true
 		o.decompression = true
+	}
+}
+
+// 6.获取http header
+func WithClientBindHTTPHeader(h *http.Header) ClientOption {
+	return func(o *DialOption) {
+		o.bindClientHttpHeader = h
 	}
 }

@@ -43,28 +43,27 @@ type DialOption struct {
 	Config
 }
 
-func ClientOptionToConf(opts ...ClientOption) *Config {
+func ClientOptionToConf(opts ...ClientOption) *DialOption {
 	var dial DialOption
 	dial.defaultSetting()
 	for _, o := range opts {
 		o(&dial)
 	}
-	return &dial.Config
+	return &dial
 }
 
-func DialConf(rawUrl string, conf *Config) (*Conn, error) {
-	var dial DialOption
+func DialConf(rawUrl string, conf *DialOption) (*Conn, error) {
 	u, err := url.Parse(rawUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	dial.u = u
-	dial.dialTimeout = defaultTimeout
-	if dial.Header == nil {
-		dial.Header = make(http.Header)
+	conf.u = u
+	conf.dialTimeout = defaultTimeout
+	if conf.Header == nil {
+		conf.Header = make(http.Header)
 	}
-	return dial.Dial()
+	return conf.Dial()
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.1
@@ -220,6 +219,10 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	rsp, err := http.ReadResponse(br, req)
 	if err != nil {
 		return nil, err
+	}
+
+	if d.bindClientHttpHeader != nil {
+		*d.bindClientHttpHeader = rsp.Header.Clone()
 	}
 
 	cd := maybeCompressionDecompression(rsp.Header)

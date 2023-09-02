@@ -23,11 +23,12 @@ import (
 )
 
 var (
-	ErrNotFoundHijacker   = errors.New("not found Hijacker")
-	bytesHeaderUpgrade    = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:")
-	bytesHeaderExtensions = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
-	bytesCRLF             = []byte("\r\n")
-	bytesColon            = []byte(": ")
+	ErrNotFoundHijacker             = errors.New("not found Hijacker")
+	bytesHeaderUpgrade              = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:")
+	bytesHeaderExtensions           = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
+	bytesCRLF                       = []byte("\r\n")
+	strGetSecWebSocketProtocolKey   = "Sec-WebSocket-Protocol"
+	bytesPutSecWebSocketProtocolKey = []byte("Sec-WebSocket-Protocol: ")
 )
 
 type ConnOption struct {
@@ -64,6 +65,17 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error)
 	if cnf.decompression {
 		if _, err = w.Write(bytesHeaderExtensions); err != nil {
 			return
+		}
+	}
+
+	v = r.Header.Get(strGetSecWebSocketProtocolKey)
+	if len(v) > 0 {
+		if _, err = w.Write(bytesPutSecWebSocketProtocolKey); err != nil {
+			return
+		}
+
+		if err = writeHeaderVal(w, StringToBytes(v)); err != nil {
+			return err
 		}
 	}
 
@@ -111,7 +123,6 @@ func checkRequest(r *http.Request) (ecode int, err error) {
 		return http.StatusUpgradeRequired, ErrSecWebSocketVersion
 	}
 
-	// TODO Sec-WebSocket-Protocol
 	// TODO Sec-WebSocket-Extensions
 	return 0, nil
 }

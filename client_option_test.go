@@ -106,4 +106,54 @@ func Test_ClientOption(t *testing.T) {
 			t.Error("not run server:method fail")
 		}
 	})
+
+	t.Run("6.1 Dial: WithClientBindHTTPHeader", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		h := make(http.Header)
+		con, err := Dial(url, WithClientBindHTTPHeader(&h), WithClientHTTPHeader(http.Header{
+			"Sec-WebSocket-Protocol": []string{"token"},
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		if h["Sec-Websocket-Protocol"][0] != "token" {
+			t.Error("header fail")
+		}
+	})
+
+	t.Run("6.2 Dial: WithClientBindHTTPHeader", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		h := make(http.Header)
+		con, err := DialConf(url, ClientOptionToConf(WithClientBindHTTPHeader(&h), WithClientHTTPHeader(http.Header{
+			"Sec-WebSocket-Protocol": []string{"token"},
+		})))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		if h["Sec-Websocket-Protocol"][0] != "token" {
+			t.Error("header fail")
+		}
+	})
 }

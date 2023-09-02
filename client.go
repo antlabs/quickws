@@ -36,10 +36,11 @@ var (
 )
 
 type DialOption struct {
-	Header      http.Header
-	u           *url.URL
-	tlsConfig   *tls.Config
-	dialTimeout time.Duration
+	Header               http.Header
+	u                    *url.URL
+	tlsConfig            *tls.Config
+	dialTimeout          time.Duration
+	bindClientHttpHeader *http.Header // 握手成功之后, 客户端获取http.Header,
 	Config
 }
 

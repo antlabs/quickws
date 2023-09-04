@@ -1512,7 +1512,7 @@ func Test_CommonOption(t *testing.T) {
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
 		con, err := Dial(url,
 			WithClientDecompressAndCompress(),
-			WithClientMaxDelayWriteDuration(10*time.Millisecond),
+			WithClientMaxDelayWriteDuration(30*time.Millisecond),
 			WithClientMaxDelayWriteNum(3),
 			WithClientWindowsParseMode(),
 			WithClientDelayWriteInitBufferSize(4096),

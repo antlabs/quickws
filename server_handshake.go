@@ -24,11 +24,12 @@ import (
 
 var (
 	ErrNotFoundHijacker             = errors.New("not found Hijacker")
-	bytesHeaderUpgrade              = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:")
+	bytesHeaderUpgrade              = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ")
 	bytesHeaderExtensions           = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
 	bytesCRLF                       = []byte("\r\n")
-	strGetSecWebSocketProtocolKey   = "Sec-WebSocket-Protocol"
 	bytesPutSecWebSocketProtocolKey = []byte("Sec-WebSocket-Protocol: ")
+	strGetSecWebSocketProtocolKey   = "Sec-WebSocket-Protocol"
+	strWebSocketKey                 = "Sec-WebSocket-Key"
 )
 
 type ConnOption struct {
@@ -46,6 +47,29 @@ func writeHeaderVal(w io.Writer, val []byte) (err error) {
 	return
 }
 
+func subProtocol(subProtocol string, cnf *Config) string {
+	if subProtocol == "" {
+		return ""
+	}
+
+	subProtocols := strings.Split(subProtocol, ",")
+	// 如果配置了subProtocols, 则检查客户端的subProtocols是否在配置的subProtocols中
+	// 为什么要这么做，可以看下这个issue
+	// https://github.com/antlabs/quickws/issues/12
+	if len(cnf.subProtocols) > 0 {
+		for _, clientSubProtocols := range subProtocols {
+			clientSubProtocols = strings.TrimSpace(clientSubProtocols)
+			for _, serverSubProtocols := range cnf.subProtocols {
+				if clientSubProtocols == serverSubProtocols {
+					return clientSubProtocols
+				}
+			}
+		}
+	}
+	// echo Secf-WebSocket-Protocol 的值
+	return subProtocol
+}
+
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
 func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error) {
@@ -55,7 +79,7 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error)
 		return
 	}
 
-	v := secWebSocketAcceptVal(r.Header.Get("Sec-WebSocket-Key"))
+	v := secWebSocketAcceptVal(r.Header.Get(strWebSocketKey))
 	// 写入Sec-WebSocket-Accept vla
 	if err = writeHeaderVal(w, StringToBytes(v)); err != nil {
 		return err
@@ -69,6 +93,7 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error)
 	}
 
 	v = r.Header.Get(strGetSecWebSocketProtocolKey)
+	v = subProtocol(v, cnf)
 	if len(v) > 0 {
 		if _, err = w.Write(bytesPutSecWebSocketProtocolKey); err != nil {
 			return

@@ -16,10 +16,17 @@ package quickws
 
 type ServerOption func(*ConnOption)
 
-// 2.配置压缩和解压缩
+// 1.配置压缩和解压缩
 func WithServerDecompressAndCompress() ServerOption {
 	return func(o *ConnOption) {
 		o.compression = true
 		o.decompression = true
+	}
+}
+
+// 2. 设置服务端支持的子协议
+func WithServerSubprotocols(subprotocols []string) ServerOption {
+	return func(o *ConnOption) {
+		o.subProtocols = subprotocols
 	}
 }

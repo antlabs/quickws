@@ -107,7 +107,7 @@ func Test_ClientOption(t *testing.T) {
 		}
 	})
 
-	t.Run("6.1 Dial: WithClientBindHTTPHeader", func(t *testing.T) {
+	t.Run("6.1 Dial: WithClientBindHTTPHeader and echo Sec-Websocket-Protocol", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, err := Upgrade(w, r)
 			if err != nil {
@@ -132,7 +132,7 @@ func Test_ClientOption(t *testing.T) {
 		}
 	})
 
-	t.Run("6.2 Dial: WithClientBindHTTPHeader", func(t *testing.T) {
+	t.Run("6.2 DialConf: WithClientBindHTTPHeader and echo Sec-Websocket-Protocol", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, err := Upgrade(w, r)
 			if err != nil {

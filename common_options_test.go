@@ -1555,6 +1555,7 @@ func Test_CommonOption(t *testing.T) {
 				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
 			}
 		case <-time.After(1000 * time.Millisecond):
+			t.Errorf("write message timeout\n")
 		}
 		if atomic.LoadInt32(&run) != 1 {
 			t.Error("not run server:method fail")

@@ -93,6 +93,11 @@ func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, 
 	return con
 }
 
+// 返回标准库的net.Conn
+func (c *Conn) NetConn() net.Conn {
+	return c.c
+}
+
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
 	defer c.Callback.OnClose(c, userErr)
 	if err := c.WriteTimeout(opcode.Close, statusCodeToBytes(code), 2*time.Second); err != nil {

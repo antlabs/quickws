@@ -623,6 +623,43 @@ func Test_WriteControl(t *testing.T) {
 	})
 }
 
+func Test_API(t *testing.T) {
+	t.Run("NetConn", func(t *testing.T) {
+		var shandler testPingPongCloseHandler
+		shandler.data = make(chan string, 1)
+		upgrade := NewUpgrade(WithServerBufioParseMode(), WithServerCallback(&shandler))
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			if c.NetConn() != c.c {
+				t.Error("server.not equal")
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+		if con.NetConn() != con.c {
+			t.Error("client.not equal")
+		}
+
+		err = con.WriteControl(Close, bytes.Repeat([]byte{1}, 126))
+		// 这里必须要报错
+		if err == nil {
+			t.Error("not error")
+		}
+	})
+}
+
 // 测试ping pong close control信息
 func TestPingPongClose(t *testing.T) {
 	// 写一个超过maxControlFrameSize的消息

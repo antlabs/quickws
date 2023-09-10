@@ -16,6 +16,10 @@ package quickws
 
 type ServerOption func(*ConnOption)
 
+type ConnOption struct {
+	Config
+}
+
 // 1.配置压缩和解压缩
 func WithServerDecompressAndCompress() ServerOption {
 	return func(o *ConnOption) {

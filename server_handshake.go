@@ -32,10 +32,6 @@ var (
 	strWebSocketKey                 = "Sec-WebSocket-Key"
 )
 
-type ConnOption struct {
-	Config
-}
-
 func writeHeaderVal(w io.Writer, val []byte) (err error) {
 	if _, err = w.Write(val); err != nil {
 		return

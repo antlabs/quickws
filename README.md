@@ -104,7 +104,7 @@ func (h *handler) OnOpen(c *quickws.Conn) {
 
 func (h *handler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
 	// 如果msg的生命周期不是在OnMessage中结束，需要拷贝一份
-	// newMsg := makc([]byte, len(msg))
+	// newMsg := make([]byte, len(msg))
 	// copy(newMsg, msg)
 
 	fmt.Printf("收到客户端消息:%s\n", msg)
@@ -148,7 +148,7 @@ func (h *handler) OnOpen(c *quickws.Conn) {
 
 func (h *handler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
 	// 如果msg的生命周期不是在OnMessage中结束，需要拷贝一份
-	// newMsg := makc([]byte, len(msg))
+	// newMsg := make([]byte, len(msg))
 	// copy(newMsg, msg)
 
 	fmt.Printf("收到服务端消息:%s\n", msg)

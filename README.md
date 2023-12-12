@@ -196,6 +196,19 @@ func main() {
 	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientReplyPing())
 }
 ```
+#### 配置socks5代理
+```go
+import(
+    "github.com/antlabs/quickws"
+	"golang.org/x/net/proxy"
+)
+
+func main() {
+    quickws.Dial("ws://127.0.0.1:12345", quickws.WithClientDialFunc(func() (quickws.Dialer, error) {
+        return proxy.SOCKS5("tcp", "socks5代理服务地址", nil, nil)
+    }))
+}
+```
 ### 服务端配置参数
 #### 配置服务自动回复ping消息
 ```go

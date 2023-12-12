@@ -183,9 +183,18 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		return nil, err
 	}
 
+	var conn net.Conn
 	begin := time.Now()
 	// conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
-	conn, err := net.Dial("tcp", d.u.Host /* TODO 加端号*/)
+	if d.dialFunc == nil {
+		conn, err = net.Dial("tcp", d.u.Host /* TODO 加端号*/)
+	} else {
+		dialInterface, err := d.dialFunc()
+		if err != nil {
+			return nil, err
+		}
+		conn, err = dialInterface.Dial("tcp", d.u.Host)
+	}
 	if err != nil {
 		return nil, err
 	}

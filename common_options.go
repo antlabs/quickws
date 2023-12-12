@@ -300,3 +300,10 @@ func WithClientOnCloseFunc(onClose func(c *Conn, err error)) ClientOption {
 		o.Callback = OnCloseFunc(onClose)
 	}
 }
+
+// 18. 配置新的dial函数
+func WithClientDialFunc(dialFunc func() (Dialer, error)) ClientOption {
+	return func(o *DialOption) {
+		o.dialFunc = dialFunc
+	}
+}

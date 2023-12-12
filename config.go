@@ -15,10 +15,15 @@
 package quickws
 
 import (
+	"net"
 	"time"
 
 	"github.com/antlabs/wsutil/enum"
 )
+
+type Dialer interface {
+	Dial(network, addr string) (c net.Conn, err error)
+}
 
 type Config struct {
 	Callback
@@ -37,6 +42,7 @@ type Config struct {
 	delayWriteInitBufferSize        int32         // 延迟写入的初始缓冲区大小, 默认值是8k
 	maxDelayWriteDuration           time.Duration // 最大延迟时间, 默认值是10ms
 	subProtocols                    []string      // 设置支持的子协议
+	dialFunc                        func() (Dialer, error)
 }
 
 func (c *Config) initPayloadSize() int {

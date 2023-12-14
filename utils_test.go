@@ -1,4 +1,4 @@
-// Copyright 2021-2023 antlabs. All rights reserved.
+// Copyright 2021-2024 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package quickws
 
 import (
+	"net/url"
 	"testing"
 )
 
@@ -24,4 +25,53 @@ func Test_SecWebSocketAcceptVal(t *testing.T) {
 	if got != need {
 		t.Errorf("need %s, got %s", need, got)
 	}
+}
+
+func Test_getHttpErrMsg(t *testing.T) {
+	t.Run("test 1", func(t *testing.T) {
+		err := getHttpErrMsg(111)
+		if err == nil {
+			t.Errorf("err should not be nil")
+		}
+	})
+
+	t.Run("test 2", func(t *testing.T) {
+		err := getHttpErrMsg(400)
+		if err == nil {
+			t.Errorf("err should not be nil")
+		}
+	})
+}
+
+type test_getHostName struct {
+	data string
+	need string
+}
+
+func Test_getHostName(t *testing.T) {
+	t.Run("test 1", func(t *testing.T) {
+		for _, d := range []test_getHostName{
+			{
+				data: "http://www.baidu.com",
+				need: "www.baidu.com:80",
+			},
+			{
+				data: "http://www.baidu.com:333",
+				need: "www.baidu.com:333",
+			},
+			{
+				data: "https://www.baidu.com",
+				need: "www.baidu.com:443",
+			},
+		} {
+
+			u, err := url.Parse(d.data)
+			if err != nil {
+				t.Errorf("err should be nil, got %s", err)
+			}
+			if getHostName(u) != d.need {
+				t.Errorf("need %s, got %s", d.need, getHostName(u))
+			}
+		}
+	})
 }

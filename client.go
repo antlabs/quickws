@@ -1,4 +1,4 @@
-// Copyright 2021-2023 antlabs. All rights reserved.
+// Copyright 2021-2024 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,9 @@ type DialOption struct {
 
 func ClientOptionToConf(opts ...ClientOption) *DialOption {
 	var dial DialOption
-	dial.defaultSetting()
+	if err := dial.defaultSetting(); err != nil {
+		panic(err.Error())
+	}
 	for _, o := range opts {
 		o(&dial)
 	}
@@ -82,7 +84,10 @@ func Dial(rawUrl string, opts ...ClientOption) (*Conn, error) {
 		dial.Header = make(http.Header)
 	}
 
-	dial.defaultSetting()
+	if err := dial.defaultSetting(); err != nil {
+		return nil, err
+	}
+
 	for _, o := range opts {
 		o(&dial)
 	}
@@ -178,6 +183,8 @@ func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 }
 
 func (d *DialOption) Dial() (c *Conn, err error) {
+	// scheme ws -> http
+	// scheme wss -> https
 	req, secWebSocket, err := d.handshake()
 	if err != nil {
 		return nil, err
@@ -185,16 +192,27 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 
 	var conn net.Conn
 	begin := time.Now()
+
+	hostName := getHostName(d.u)
 	// conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
-	if d.dialFunc == nil {
-		conn, err = net.Dial("tcp", d.u.Host /* TODO 加端号*/)
-	} else {
+	dialFunc := net.Dial
+	if d.dialFunc != nil {
 		dialInterface, err := d.dialFunc()
 		if err != nil {
 			return nil, err
 		}
-		conn, err = dialInterface.Dial("tcp", d.u.Host)
+		dialFunc = dialInterface.Dial
 	}
+
+	if d.proxyFunc != nil {
+		proxyURL, err := d.proxyFunc(req)
+		if err != nil {
+			return nil, err
+		}
+		dialFunc = newhttpProxy(proxyURL, dialFunc).Dial
+	}
+
+	conn, err = dialFunc("tcp", hostName)
 	if err != nil {
 		return nil, err
 	}

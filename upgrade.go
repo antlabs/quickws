@@ -1,4 +1,4 @@
-// Copyright 2021-2023 antlabs. All rights reserved.
+// Copyright 2021-2024 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,9 @@ type UpgradeServer struct {
 
 func NewUpgrade(opts ...ServerOption) *UpgradeServer {
 	var conf ConnOption
-	conf.defaultSetting()
+	if err := conf.defaultSetting(); err != nil {
+		panic(err.Error())
+	}
 	for _, o := range opts {
 		o(&conf)
 	}
@@ -45,7 +47,9 @@ func (u *UpgradeServer) Upgrade(w http.ResponseWriter, r *http.Request) (c *Conn
 
 func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *Conn, err error) {
 	var conf ConnOption
-	conf.defaultSetting()
+	if err := conf.defaultSetting(); err != nil {
+		return nil, err
+	}
 	for _, o := range opts {
 		o(&conf)
 	}

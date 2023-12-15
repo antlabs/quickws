@@ -22,6 +22,7 @@ quickws是一个高性能的websocket库
 		* [配置握手时的超时时间](#配置握手时的超时时间)
 		* [配置自动回复ping消息](#配置自动回复ping消息)
 		* [配置socks5代理](#配置socks5代理)
+		* [配置proxy代理](#配置proxy代理)
 	* [服务配置参数](#服务端配置)
 		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
 ## 注意⚠️
@@ -208,6 +209,21 @@ func main() {
     quickws.Dial("ws://127.0.0.1:12345", quickws.WithClientDialFunc(func() (quickws.Dialer, error) {
         return proxy.SOCKS5("tcp", "socks5代理服务地址", nil, nil)
     }))
+}
+```
+#### 配置proxy代理
+```go
+import(
+    "github.com/antlabs/quickws"
+)
+
+func main() {
+
+    proxy := func(*http.Request) (*url.URL, error) {
+        return url.Parse("http://127.0.0.1:1007")
+    }
+
+    quickws.Dial("ws://127.0.0.1:12345", quickws.WithClientProxyFunc(proxy))
 }
 ```
 ### 服务端配置参数

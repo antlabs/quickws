@@ -1,4 +1,4 @@
-// Copyright 2021-2023 antlabs. All rights reserved.
+// Copyright 2021-2024 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,16 @@
 package quickws
 
 import (
+	"errors"
 	"net"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/antlabs/wsutil/enum"
 )
+
+var ErrDialFuncAndProxyFunc = errors.New("dialFunc and proxyFunc can't be set at the same time")
 
 type Dialer interface {
 	Dial(network, addr string) (c net.Conn, err error)
@@ -43,6 +48,7 @@ type Config struct {
 	maxDelayWriteDuration           time.Duration // 最大延迟时间, 默认值是10ms
 	subProtocols                    []string      // 设置支持的子协议
 	dialFunc                        func() (Dialer, error)
+	proxyFunc                       func(*http.Request) (*url.URL, error) //
 }
 
 func (c *Config) initPayloadSize() int {
@@ -50,7 +56,7 @@ func (c *Config) initPayloadSize() int {
 }
 
 // 默认设置
-func (c *Config) defaultSetting() {
+func (c *Config) defaultSetting() error {
 	c.Callback = &DefCallback{}
 	c.maxDelayWriteNum = 10
 	c.windowsMultipleTimesPayloadSize = 1.0
@@ -60,4 +66,9 @@ func (c *Config) defaultSetting() {
 	c.parseMode = ParseModeWindows
 	// 对于text消息，默认不检查text是utf8字符
 	c.utf8Check = func(b []byte) bool { return true }
+
+	if c.dialFunc != nil && c.proxyFunc != nil {
+		return ErrDialFuncAndProxyFunc
+	}
+	return nil
 }

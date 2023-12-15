@@ -1,4 +1,4 @@
-// Copyright 2021-2023 antlabs. All rights reserved.
+// Copyright 2021-2024 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 package quickws
 
 import (
+	"net/http"
+	"net/url"
 	"time"
 	"unicode/utf8"
 )
@@ -301,9 +303,31 @@ func WithClientOnCloseFunc(onClose func(c *Conn, err error)) ClientOption {
 	}
 }
 
-// 18. 配置新的dial函数
+// 18. 配置新的dial函数, 这里可以配置socks5代理地址
 func WithClientDialFunc(dialFunc func() (Dialer, error)) ClientOption {
 	return func(o *DialOption) {
 		o.dialFunc = dialFunc
+	}
+}
+
+// 19. 配置proxy地址
+func WithClientProxyFunc(proxyFunc func(*http.Request) (*url.URL, error)) ClientOption {
+	return func(o *DialOption) {
+		o.proxyFunc = proxyFunc
+	}
+}
+
+// 20. 设置支持的子协议
+// 20.1 设置客户端支持的子协议
+func WithClientSubprotocols(subprotocols []string) ClientOption {
+	return func(o *DialOption) {
+		o.subProtocols = subprotocols
+	}
+}
+
+// 20.2 设置服务端支持的子协议
+func WithServerSubprotocols(subprotocols []string) ServerOption {
+	return func(o *ConnOption) {
+		o.subProtocols = subprotocols
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2021-2023 antlabs. All rights reserved.
+// Copyright 2021-2024 antlabs. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package quickws
 import (
 	"crypto/sha1"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"reflect"
@@ -83,4 +85,13 @@ func maybeCompressionDecompression(header http.Header) bool {
 	}
 
 	return false
+}
+
+func getHttpErrMsg(statusCode int) error {
+	errMsg := http.StatusText(statusCode)
+	if errMsg != "" {
+		return errors.New(errMsg)
+	}
+
+	return fmt.Errorf("status code:%d", statusCode)
 }

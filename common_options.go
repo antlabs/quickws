@@ -316,3 +316,18 @@ func WithClientProxyFunc(proxyFunc func(*http.Request) (*url.URL, error)) Client
 		o.proxyFunc = proxyFunc
 	}
 }
+
+// 20. 设置支持的子协议
+// 20.1 设置客户端支持的子协议
+func WithClientSubprotocols(subprotocols []string) ClientOption {
+	return func(o *DialOption) {
+		o.subProtocols = subprotocols
+	}
+}
+
+// 20.2 设置服务端支持的子协议
+func WithServerSubprotocols(subprotocols []string) ServerOption {
+	return func(o *ConnOption) {
+		o.subProtocols = subprotocols
+	}
+}

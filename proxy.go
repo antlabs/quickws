@@ -20,6 +20,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+
+	"github.com/antlabs/wsutil/hostname"
 )
 
 type (
@@ -41,7 +43,7 @@ func (h *httpProxy) Dial(network, addr string) (c net.Conn, err error) {
 		return h.dial(network, addr)
 	}
 
-	hostName := getHostName(h.proxyAddr)
+	hostName := hostname.GetHostName(h.proxyAddr)
 	c, err = h.dial(network, hostName)
 	if err != nil {
 		return nil, err

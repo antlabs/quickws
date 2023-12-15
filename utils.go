@@ -21,9 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"reflect"
-	"strings"
 	"time"
 	"unsafe"
 )
@@ -87,23 +85,6 @@ func maybeCompressionDecompression(header http.Header) bool {
 	}
 
 	return false
-}
-
-func getHostName(u *url.URL) (hostName string) {
-	hostName = u.Hostname()
-	if u.Port() == "" {
-		switch strings.ToLower(u.Scheme) {
-		case "https":
-			hostName += ":443"
-		case "http":
-			hostName += ":80"
-		default:
-			panic(fmt.Sprintf("unknown scheme:%s", u.Scheme))
-		}
-		return
-	}
-
-	return u.Host
 }
 
 func getHttpErrMsg(statusCode int) error {

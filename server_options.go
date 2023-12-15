@@ -27,10 +27,3 @@ func WithServerDecompressAndCompress() ServerOption {
 		o.decompression = true
 	}
 }
-
-// 2. 设置服务端支持的子协议
-func WithServerSubprotocols(subprotocols []string) ServerOption {
-	return func(o *ConnOption) {
-		o.subProtocols = subprotocols
-	}
-}

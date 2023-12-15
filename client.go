@@ -28,6 +28,7 @@ import (
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
+	"github.com/antlabs/wsutil/hostname"
 )
 
 var (
@@ -127,6 +128,10 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 		d.Header.Add("Sec-WebSocket-Extensions", strExtensions)
 	}
 
+	if len(d.subProtocols) > 0 {
+		d.Header["Sec-WebSocket-Protocol"] = []string{strings.Join(d.subProtocols, ", ")}
+	}
+
 	req.Header = d.Header
 	return req, secWebSocket, nil
 }
@@ -193,7 +198,7 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	var conn net.Conn
 	begin := time.Now()
 
-	hostName := getHostName(d.u)
+	hostName := hostname.GetHostName(d.u)
 	// conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
 	dialFunc := net.Dial
 	if d.dialFunc != nil {

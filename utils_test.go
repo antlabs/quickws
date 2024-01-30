@@ -15,6 +15,8 @@
 package quickws
 
 import (
+	"net/http"
+	"reflect"
 	"testing"
 )
 
@@ -40,4 +42,111 @@ func Test_getHttpErrMsg(t *testing.T) {
 			t.Errorf("err should not be nil")
 		}
 	})
+}
+
+func TestStringToBytes(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		wantB []byte
+	}{
+		{
+			name:  "test1",
+			args:  args{s: "test1"},
+			wantB: []byte("test1"),
+		},
+		{
+			name:  "test2",
+			args:  args{s: "test2"},
+			wantB: []byte("test2"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotB := StringToBytes(tt.args.s); !reflect.DeepEqual(gotB, tt.wantB) {
+				t.Errorf("StringToBytes() = %v, want %v", gotB, tt.wantB)
+			}
+		})
+	}
+}
+
+func Test_secWebSocketAccept(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{name: ">0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := secWebSocketAccept(); len(got) == 0 {
+				t.Errorf("secWebSocketAccept() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_secWebSocketAcceptVal(t *testing.T) {
+	type args struct {
+		val string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "test1", args: args{val: "test1"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := secWebSocketAcceptVal(tt.args.val); len(got) == 0 {
+				t.Errorf("secWebSocketAcceptVal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_needDecompression(t *testing.T) {
+	type args struct {
+		header http.Header
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "test1", args: args{header: http.Header{"Sec-Websocket-Extensions": {"permessage-deflate; server_no_context_takeover; client_no_context_takeover"}}}, want: true},
+		{name: "test2", args: args{header: http.Header{"Sec-Websocket-Extensions": {"xx"}}}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := needDecompression(tt.args.header); got != tt.want {
+				t.Errorf("needDecompression() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_maybeCompressionDecompression(t *testing.T) {
+	type args struct {
+		header http.Header
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "test1", args: args{header: http.Header{"Sec-Websocket-Extensions": {"permessage-deflate; server_no_context_takeover; client_no_context_takeover"}}}, want: true},
+		{name: "test2", args: args{header: http.Header{"Sec-Websocket-Extensions": {"xx"}}}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := maybeCompressionDecompression(tt.args.header); got != tt.want {
+				t.Errorf("maybeCompressionDecompression() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

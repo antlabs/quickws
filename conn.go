@@ -401,7 +401,7 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error) {
-	if err = c.c.SetDeadline(time.Now().Add(t)); err != nil {
+	if err = c.c.SetWriteDeadline(time.Now().Add(t)); err != nil {
 		return
 	}
 

@@ -624,6 +624,51 @@ func Test_WriteControl(t *testing.T) {
 }
 
 func Test_API(t *testing.T) {
+	t.Run("WriteTimeout", func(t *testing.T) {
+		// 测试WriteTimeout的作用
+		// 起个空服务，客户端写一个数据包，服务端不回包，让客户端触发ReadTimeout
+		run := int32(0)
+		runClose := make(chan struct{}, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r,
+				WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+
+				}))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url,
+			WithClientReadTimeout(20*time.Millisecond),
+			WithClientCallbackFunc(func(c *Conn) {}, func(c *Conn, o Opcode, b []byte) {}, func(c *Conn, err error) {
+				atomic.AddInt32(&run, int32(1))
+				runClose <- struct{}{}
+			}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		err = con.WriteTimeout(Text, []byte("hello"), 10*time.Millisecond)
+		if err != nil {
+			t.Error(err)
+		}
+		con.StartReadLoop()
+		select {
+		case <-runClose:
+		case <-time.After(1000 * time.Millisecond):
+			t.Errorf("13-15.client: WriteMessageDelay-timeout-send: timeout \n")
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
 	t.Run("NetConn", func(t *testing.T) {
 		var shandler testPingPongCloseHandler
 		shandler.data = make(chan string, 1)

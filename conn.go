@@ -405,7 +405,7 @@ func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error)
 		return
 	}
 
-	defer func() { _ = c.c.SetDeadline(time.Time{}) }()
+	defer func() { _ = c.c.SetWriteDeadline(time.Time{}) }()
 	return c.WriteMessage(op, data)
 }
 

@@ -28,7 +28,7 @@ jobs:
         env:
           CRYPTOGRAPHY_ALLOW_OPENSSL_102: yes
         run: |
-          chmod +x ./autobahn/script/run.sh & ./autobahn/script/run.sh
+          sudo chmod +x ./autobahn/script/run.sh & ./autobahn/script/run.sh
       - name: Autobahn Report Artifact
         if: >-
           startsWith(matrix.os, 'ubuntu')

@@ -34,7 +34,8 @@ cleanup() {
 	killall autobahn_server
 }
 
-./autobahn/bin/autobahn_reporter ${PWD}/autobahn/report/index.json
+# TODO
+# ./autobahn/bin/autobahn_reporter ${PWD}/autobahn/report/index.json
 
 cleanup
 

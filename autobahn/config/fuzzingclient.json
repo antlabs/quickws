@@ -9,6 +9,13 @@
                         }
                 },
                 {
+                        "agent": "non-tls-timeout",
+                        "url": "ws://localhost:9001/autobahn-timeout",
+                        "options": {
+                                "version": 18
+                        }
+                },
+                {
                         "agent": "tls",
                         "url": "wss://localhost:9002/autobahn",
                         "options": {
@@ -23,5 +30,4 @@
                 ""
         ],
         "exclude-agent-cases": {}
-}  
-
+}

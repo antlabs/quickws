@@ -1,8 +1,8 @@
 #!/bin/bash
 
 mkdir -p ./autobahn/bin
-go build -o ./autobahn/bin/autobahn_server ./autobahn/server/
-go build -o ./autobahn/bin/autobahn_reporter ./autobahn/reporter/
+go build -o ./autobahn/bin/autobahn_server ./autobahn/autobahn-server.go
+# go build -o ./autobahn/bin/autobahn_reporter ./autobahn/reporter/
 
 echo "pwd:" $(pwd)
 ./autobahn/bin/autobahn_server &
@@ -34,7 +34,8 @@ cleanup() {
 	killall autobahn_server
 }
 
-./autobahn/bin/autobahn_reporter ${PWD}/autobahn/report/index.json
+# TODO
+# ./autobahn/bin/autobahn_reporter ${PWD}/autobahn/report/index.json
 
 cleanup
 

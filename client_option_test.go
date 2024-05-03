@@ -113,6 +113,46 @@ func Test_ClientOption(t *testing.T) {
 		}
 	})
 
+	t.Run("Dial.WithClientDialTimeout", func(t *testing.T) {
+		done := make(chan string, 1)
+		run := int32(0)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			v := r.Header.Get("A")
+			done <- v
+			con, err := Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+
+			defer con.Close()
+			atomic.AddInt32(&run, 1)
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientHTTPHeader(http.Header{
+			"A": []string{"A"},
+		}), WithClientCallback(&testDefaultCallback{}), WithClientDialTimeout(time.Second))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer con.Close()
+
+		select {
+		case v := <-done:
+			if v != "A" {
+				t.Error("header fail")
+			}
+		case <-time.After(1000 * time.Millisecond):
+		}
+		if atomic.LoadInt32(&run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+	t.Run("ClientOption.WithClientDialTimeout", func(t *testing.T) {})
 	t.Run("6.1 Dial: WithClientBindHTTPHeader and echo Sec-Websocket-Protocol", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, err := Upgrade(w, r)

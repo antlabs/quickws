@@ -13,7 +13,12 @@
 // limitations under the License.
 package quickws
 
-import "testing"
+import (
+	"net/http"
+	"net/url"
+	"testing"
+	"time"
+)
 
 func Test_InitPayloadSize(t *testing.T) {
 	t.Run("InitPayload", func(t *testing.T) {
@@ -25,4 +30,65 @@ func Test_InitPayloadSize(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestConfig_defaultSetting(t *testing.T) {
+	type fields struct {
+		Callback                        Callback
+		tcpNoDelay                      bool
+		replyPing                       bool
+		decompression                   bool
+		compression                     bool
+		ignorePong                      bool
+		disableBufioClearHack           bool
+		utf8Check                       func([]byte) bool
+		readTimeout                     time.Duration
+		windowsMultipleTimesPayloadSize float32
+		bufioMultipleTimesPayloadSize   float32
+		parseMode                       parseMode
+		maxDelayWriteNum                int32
+		delayWriteInitBufferSize        int32
+		maxDelayWriteDuration           time.Duration
+		subProtocols                    []string
+		dialFunc                        func() (Dialer, error)
+		proxyFunc                       func(*http.Request) (*url.URL, error)
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{name: "fail", fields: fields{
+			dialFunc:  func() (Dialer, error) { return nil, nil },
+			proxyFunc: func(*http.Request) (*url.URL, error) { return nil, nil },
+		}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Config{
+				Callback:                        tt.fields.Callback,
+				tcpNoDelay:                      tt.fields.tcpNoDelay,
+				replyPing:                       tt.fields.replyPing,
+				decompression:                   tt.fields.decompression,
+				compression:                     tt.fields.compression,
+				ignorePong:                      tt.fields.ignorePong,
+				disableBufioClearHack:           tt.fields.disableBufioClearHack,
+				utf8Check:                       tt.fields.utf8Check,
+				readTimeout:                     tt.fields.readTimeout,
+				windowsMultipleTimesPayloadSize: tt.fields.windowsMultipleTimesPayloadSize,
+				bufioMultipleTimesPayloadSize:   tt.fields.bufioMultipleTimesPayloadSize,
+				parseMode:                       tt.fields.parseMode,
+				maxDelayWriteNum:                tt.fields.maxDelayWriteNum,
+				delayWriteInitBufferSize:        tt.fields.delayWriteInitBufferSize,
+				maxDelayWriteDuration:           tt.fields.maxDelayWriteDuration,
+				subProtocols:                    tt.fields.subProtocols,
+				dialFunc:                        tt.fields.dialFunc,
+				proxyFunc:                       tt.fields.proxyFunc,
+			}
+			if err := c.defaultSetting(); (err != nil) != tt.wantErr {
+				t.Errorf("Config.defaultSetting() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

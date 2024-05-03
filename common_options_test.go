@@ -1386,16 +1386,29 @@ func Test_CommonOption(t *testing.T) {
 	t.Run("13-15.server.global.2: WriteMessageDelay", func(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
-		upgrade := NewUpgrade(WithServerMaxDelayWriteDuration(time.Millisecond*20), WithServerMaxDelayWriteNum(3), WithServerDelayWriteInitBufferSize(4096), WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-			c.WriteMessageDelay(op, payload)
-			c.WriteMessageDelay(op, payload)
-			c.WriteMessageDelay(op, payload)
-		}))
+		upgrade := NewUpgrade(WithServerMaxDelayWriteDuration(time.Millisecond*20),
+			WithServerMaxDelayWriteNum(3),
+			WithServerDelayWriteInitBufferSize(4096),
+			WithServerOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
+				err := c.WriteMessageDelay(op, payload)
+				if err != nil {
+					t.Errorf("write message fail:%v\n", err)
+				}
+				err = c.WriteMessageDelay(op, payload)
+				if err != nil {
+					t.Errorf("write message fail:%v\n", err)
+				}
+				err = c.WriteMessageDelay(op, payload)
+				if err != nil {
+					t.Errorf("write message fail:%v\n", err)
+				}
+			}))
 
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := upgrade.Upgrade(w, r)
 			if err != nil {
 				t.Error(err)
+				return
 			}
 			c.StartReadLoop()
 		}))
@@ -1422,7 +1435,7 @@ func Test_CommonOption(t *testing.T) {
 		case <-time.After(1000 * time.Millisecond):
 		}
 		if atomic.LoadInt32(&run) != 3 {
-			t.Error("not run server:method fail")
+			t.Errorf("not run server:method fail: run:%d,need:3\n", run)
 		}
 	})
 

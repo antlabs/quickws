@@ -15,9 +15,11 @@
 package quickws
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -122,4 +124,40 @@ func Test_Proxy(t *testing.T) {
 			return
 		}
 	})
+}
+
+func Test_httpProxy_Dial(t *testing.T) {
+	type fields struct {
+		proxyAddr *url.URL
+		dial      func(network, addr string) (c net.Conn, err error)
+	}
+	type args struct {
+		network string
+		addr    string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantC   net.Conn
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &httpProxy{
+				proxyAddr: tt.fields.proxyAddr,
+				dial:      tt.fields.dial,
+			}
+			gotC, err := h.Dial(tt.args.network, tt.args.addr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("httpProxy.Dial() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotC, tt.wantC) {
+				t.Errorf("httpProxy.Dial() = %v, want %v", gotC, tt.wantC)
+			}
+		})
+	}
 }

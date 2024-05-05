@@ -142,10 +142,10 @@ func Test_maybeCompressionDecompression(t *testing.T) {
 		{name: "test1", args: args{header: http.Header{"Sec-Websocket-Extensions": {"permessage-deflate; server_no_context_takeover; client_no_context_takeover"}}}, want: true},
 		{name: "test2", args: args{header: http.Header{"Sec-Websocket-Extensions": {"xx"}}}, want: false},
 	}
-	for _, tt := range tests {
+	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := maybeCompressionDecompression(tt.args.header); got != tt.want {
-				t.Errorf("maybeCompressionDecompression() = %v, want %v", got, tt.want)
+				t.Errorf("index:%d, maybeCompressionDecompression() = %v, want %v", index, got, tt.want)
 			}
 		})
 	}

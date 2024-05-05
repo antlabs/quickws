@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+type pair struct {
+	key string
+	val string
+}
+
 // Token octets per RFC 2616.
 var isTokenOctet = [256]bool{
 	'!':  true,
@@ -152,7 +157,7 @@ func nextTokenOrQuoted(s string) (value string, rest string) {
 }
 
 // parseExtensions parses WebSocket extensions from a header.
-func parseExtensions(header http.Header) []map[string]string {
+func parseExtensions(header http.Header) (result []pair) {
 	// From RFC 6455:
 	//
 	//  Sec-WebSocket-Extensions = extension-list
@@ -165,7 +170,6 @@ func parseExtensions(header http.Header) []map[string]string {
 	//     ;after quoted-string unescaping MUST conform to the
 	//     ;'token' ABNF.
 
-	var result []map[string]string
 headers:
 	for _, s := range header["Sec-Websocket-Extensions"] {
 		for {
@@ -174,7 +178,8 @@ headers:
 			if t == "" {
 				continue headers
 			}
-			ext := map[string]string{"": t}
+			// ext := map[string]string{"": t}
+			result = append(result, pair{key: t})
 			for {
 				s = skipSpace(s)
 				if !strings.HasPrefix(s, ";") {
@@ -194,12 +199,12 @@ headers:
 				if s != "" && s[0] != ',' && s[0] != ';' {
 					continue headers
 				}
-				ext[k] = v
+				// ext[k] = v
+				result = append(result, pair{key: k, val: v})
 			}
 			if s != "" && s[0] != ',' {
 				continue headers
 			}
-			result = append(result, ext)
 			if s == "" {
 				continue headers
 			}

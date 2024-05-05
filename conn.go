@@ -414,12 +414,12 @@ func (c *Conn) WriteCloseTimeout(sc StatusCode, t time.Duration) (err error) {
 	return c.WriteTimeout(opcode.Close, buf, t)
 }
 
-// data 不能超过125字节
+// data 不能超过125字节, rfc规定
 func (c *Conn) WritePing(data []byte) (err error) {
 	return c.WriteControl(Ping, data[:])
 }
 
-// data 不能超过125字节
+// data 不能超过125字节, rfc规定
 func (c *Conn) WritePong(data []byte) (err error) {
 	return c.WriteControl(Pong, data[:])
 }

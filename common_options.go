@@ -331,3 +331,31 @@ func WithServerSubprotocols(subprotocols []string) ServerOption {
 		o.subProtocols = subprotocols
 	}
 }
+
+// 21.1 设置客户端支持上下文接管, 默认不支持上下文接管
+func WithClientContextTakeover() ServerOption {
+	return func(o *ConnOption) {
+		o.clientContextTakeover = false
+	}
+}
+
+// 21.2 设置服务端支持上下文接管, 默认不支持上下文接管
+func WithServerContextTakeover() ServerOption {
+	return func(o *ConnOption) {
+		o.serverContextTakeover = false
+	}
+}
+
+// 21.1 设置客户端最大窗口位数，使用上下文接管时，这个参数才有效
+func WithClientMaxWindowsBits(bits uint8) ClientOption {
+	return func(o *DialOption) {
+		o.clientMaxWindowBits = bits
+	}
+}
+
+// 22.2 设置服务端最大窗口位数, 使用上下文接管时，这个参数才有效
+func WithServerMaxWindowBits(bits uint8) ServerOption {
+	return func(o *ConnOption) {
+		o.serverMaxWindowBits = bits
+	}
+}

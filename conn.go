@@ -43,32 +43,31 @@ const (
 
 // var _ net.Conn = (*Conn)(nil)
 
-// 延迟写
+// 延迟写, 基于次数和时间 合并数据写入, 实验功能
 type delayWrite struct {
-	delayNum     int32         // 控制延迟写的数量
 	delayMu      sync.Mutex    // 延迟写的锁
 	delayBuf     *bytes.Buffer // 延迟写的缓冲区
 	delayTimeout *time.Timer   // 延迟写的定时器
 	delayErr     error         // TODO 原子操作
+	delayNum     int32         // 控制延迟写的数量
 }
 
 type Conn struct {
-	closed int32
-	br     *bufio.Reader // read 和fr同时只能使用一个
-	*Config
-	c      net.Conn
-	client bool
-	once   sync.Once
-
-	fr fixedreader.FixedReader
-	// fw fixedwriter.FixedWriter
-	bp bytespool.BytesPool // 实验某些特性加的字段
+	fr      fixedreader.FixedReader // 默认使用windows
+	c       net.Conn
+	br      *bufio.Reader     // read和fr同时只能使用一个
+	*Config                   // config 可能是全局，也可能是局部初始化得来的
+	pd      permessageDeflate // permessageDeflate局部配置
+	once    sync.Once
+	// fw fixedwriter.FixedWriter, 写不能挂载到net.Conn， 因为可能并发写
 
 	delayWrite
 	readHeadArray        [enum.MaxFrameHeaderSize]byte
 	fragmentFramePayload []byte // 存放分片帧的缓冲区
-	bufioPayload         []byte
+	bufioPayload         *[]byte
 	fragmentFrameHeader  *frame.FrameHeader
+	closed               int32
+	client               bool
 }
 
 func setNoDelay(c net.Conn, noDelay bool) error {
@@ -91,7 +90,6 @@ func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, 
 		Config: conf,
 		fr:     fr,
 		br:     read,
-		bp:     bp,
 	}
 
 	return con
@@ -157,7 +155,7 @@ func (c *Conn) ReadLoop() (err error) {
 			(*bufio2.Reader2)(unsafe.Pointer(c.br)).ResetBuf(make([]byte, newSize))
 		}
 		// bufio 模式才会使用payload
-		c.bufioPayload = *bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
+		c.bufioPayload = bytespool.GetBytes(1024 + enum.MaxFrameHeaderSize)
 	}
 
 	for {
@@ -204,7 +202,7 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPa
 // 读取websocket frame.Frame的循环
 func (c *Conn) readMessage() (err error) {
 	// 从网络读取数据
-	f, err := c.readDataFromNet(&c.readHeadArray, &c.bufioPayload)
+	f, err := c.readDataFromNet(&c.readHeadArray, c.bufioPayload)
 	if err != nil {
 		return err
 	}
@@ -481,7 +479,6 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 
 func (c *Conn) Close() (err error) {
 	c.once.Do(func() {
-		c.bp.Free()
 		err = c.c.Close()
 		c.delayMu.Lock()
 		if c.delayTimeout != nil {

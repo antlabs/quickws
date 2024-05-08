@@ -30,6 +30,9 @@ type Dialer interface {
 	Dial(network, addr string) (c net.Conn, err error)
 }
 
+// Config的配置，有两个种用法
+// 一种是声明一个全局的配置，后面不停使用。
+// 另外一种是局部声明一个配置，然后使用WithXXX函数设置配置
 type Config struct {
 	Callback
 	permessageDeflate               // 静态配置, 从WithXXX函数中获取
@@ -40,14 +43,15 @@ type Config struct {
 	ignorePong                      bool              // 忽略pong消息
 	disableBufioClearHack           bool              // 关闭bufio的clear hack优化
 	utf8Check                       func([]byte) bool // utf8检查
-	readTimeout                     time.Duration
-	windowsMultipleTimesPayloadSize float32       // 设置几倍(1024+14)的payload大小
-	bufioMultipleTimesPayloadSize   float32       // 设置几倍(1024)的payload大小
-	parseMode                       parseMode     // 解析模式
-	maxDelayWriteNum                int32         // 最大延迟包的个数, 默认值为10
-	delayWriteInitBufferSize        int32         // 延迟写入的初始缓冲区大小, 默认值是8k
-	maxDelayWriteDuration           time.Duration // 最大延迟时间, 默认值是10ms
-	subProtocols                    []string      // 设置支持的子协议
+	readTimeout                     time.Duration     // 读超时时间
+	windowsMultipleTimesPayloadSize float32           // 设置几倍(1024+14)的payload大小
+	bufioMultipleTimesPayloadSize   float32           // 设置几倍(1024)的payload大小
+	parseMode                       parseMode         // 解析模式
+	maxDelayWriteNum                int32             // 最大延迟包的个数, 默认值为10
+	delayWriteInitBufferSize        int32             // 延迟写入的初始缓冲区大小, 默认值是8k
+	maxDelayWriteDuration           time.Duration     // 最大延迟时间, 默认值是10ms
+	subProtocols                    []string          // 设置支持的子协议
+	maxMessage                      int64             //最大消息大小
 	dialFunc                        func() (Dialer, error)
 	proxyFunc                       func(*http.Request) (*url.URL, error) //
 }

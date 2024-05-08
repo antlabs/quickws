@@ -123,8 +123,12 @@ func Test_needDecompression(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := needDecompression(tt.args.header); got != tt.want {
-				t.Errorf("needDecompression() = %v, want %v", got, tt.want)
+			pd, err := needDecompression(tt.args.header)
+			if err != nil {
+				t.Error("")
+			}
+			if pd.enable != tt.want {
+				t.Errorf("needDecompression() = %v, want %v", pd, tt.want)
 			}
 		})
 	}
@@ -144,8 +148,13 @@ func Test_maybeCompressionDecompression(t *testing.T) {
 	}
 	for index, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := maybeCompressionDecompression(tt.args.header); got != tt.want {
-				t.Errorf("index:%d, maybeCompressionDecompression() = %v, want %v", index, got, tt.want)
+			pd, err := maybeCompressionDecompression(tt.args.header)
+			if err != nil {
+				t.Errorf("maybeCompressionDecompression() error:%v\n", err)
+				return
+			}
+			if pd.enable != tt.want {
+				t.Errorf("index:%d, maybeCompressionDecompression() = %v, want %v", index, pd, tt.want)
 			}
 		})
 	}

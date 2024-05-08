@@ -8,7 +8,6 @@ import (
 	"compress/flate"
 	"errors"
 	"io"
-	"strings"
 	"sync"
 )
 
@@ -24,18 +23,6 @@ var (
 		return flate.NewReader(nil)
 	}}
 )
-
-func decompressNoContextTakeover(r io.Reader) io.ReadCloser {
-	const tail =
-	// Add four bytes as specified in RFC
-	"\x00\x00\xff\xff" +
-		// Add final block to squelch unexpected EOF error from flate reader.
-		"\x01\x00\x00\xff\xff"
-
-	fr, _ := flateReaderPool.Get().(io.ReadCloser)
-	fr.(flate.Resetter).Reset(io.MultiReader(r, strings.NewReader(tail)), nil)
-	return &flateReadWrapper{fr}
-}
 
 /*
 func isValidCompressionLevel(level int) bool {

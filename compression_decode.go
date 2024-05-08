@@ -3,7 +3,12 @@
 // license that can be found in the LICENSE file.
 package quickws
 
-import "io"
+import (
+	"bytes"
+	"compress/flate"
+	"io"
+	"strings"
+)
 
 type flateReadWrapper struct {
 	fr io.ReadCloser
@@ -31,4 +36,27 @@ func (r *flateReadWrapper) Close() error {
 	flateReaderPool.Put(r.fr)
 	r.fr = nil
 	return err
+}
+
+func decompressNoContextTakeover(r io.Reader) io.ReadCloser {
+	const tail =
+	// Add four bytes as specified in RFC
+	"\x00\x00\xff\xff" +
+		// Add final block to squelch unexpected EOF error from flate reader.
+		"\x01\x00\x00\xff\xff"
+
+	fr, _ := flateReaderPool.Get().(io.ReadCloser)
+	fr.(flate.Resetter).Reset(io.MultiReader(r, strings.NewReader(tail)), nil)
+	return &flateReadWrapper{fr}
+}
+
+func decode(payload []byte) ([]byte, error) {
+	r := bytes.NewReader(payload)
+	r2 := decompressNoContextTakeover(r)
+	var o bytes.Buffer
+	if _, err := io.Copy(&o, r2); err != nil {
+		return nil, err
+	}
+	r2.Close()
+	return o.Bytes(), nil
 }

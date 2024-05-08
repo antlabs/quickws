@@ -67,7 +67,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		return nil, ErrNotFoundHijacker
 	}
 
-	var read *bufio.Reader
+	var br *bufio.Reader
 	var conn net.Conn
 	var rw *bufio.ReadWriter
 	if conf.parseMode == ParseModeWindows {
@@ -82,7 +82,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	} else {
 		var rw *bufio.ReadWriter
 		conn, rw, err = hi.Hijack()
-		read = rw.Reader
+		br = rw.Reader
 		rw = nil
 	}
 	if err != nil {
@@ -91,8 +91,12 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 
 	// 是否打开解压缩
 	// 外层接收压缩, 并且客户端发送扩展过来
+	var pd permessageDeflate
 	if conf.decompression {
-		conf.decompression = needDecompression(r.Header)
+		pd, err = needDecompression(r.Header)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	buf := bytespool.GetUpgradeRespBytes()
@@ -118,5 +122,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	}
 
 	conn.SetDeadline(time.Time{})
-	return newConn(conn, false, conf, fr, read, bp), nil
+	wsCon := newConn(conn, false, conf, fr, br, bp)
+	wsCon.pd = pd
+	return wsCon, nil
 }

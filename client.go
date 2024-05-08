@@ -258,12 +258,12 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		*d.bindClientHttpHeader = rsp.Header.Clone()
 	}
 
-	cd := maybeCompressionDecompression(rsp.Header)
+	pd, err := maybeCompressionDecompression(rsp.Header)
 	if d.decompression {
-		d.decompression = cd
+		pd.decompression = pd.enable && c.decompression
 	}
 	if d.compression {
-		d.compression = cd
+		pd.compression = pd.enable && c.compression
 	}
 
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {
@@ -295,5 +295,8 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		br = nil
 	}
 	// fmt.Println(brw.Reader.Buffered())
-	return newConn(conn, true, &d.Config, fr, br, bp), nil
+	conn.SetDeadline(time.Time{})
+	wsCon := newConn(conn, false, &d.Config, fr, br, bp)
+	wsCon.pd = pd
+	return wsCon, nil
 }

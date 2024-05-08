@@ -359,3 +359,17 @@ func WithServerMaxWindowBits(bits uint8) ServerOption {
 		o.serverMaxWindowBits = bits
 	}
 }
+
+// 22.1 设置客户端最大可以处理的message的大小, 默认没有限制
+func WithClientMaxMessage(size int64) ClientOption {
+	return func(o *DialOption) {
+		o.maxMessage = size
+	}
+}
+
+// 22.2 设置服务端最大可以处理的message的大小，默认没有限制
+func WithServerMaxMessage(size int64) ServerOption {
+	return func(o *ConnOption) {
+		o.maxMessage = size
+	}
+}

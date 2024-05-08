@@ -111,7 +111,7 @@ func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
 
 func (c *Conn) failRsv1(op opcode.Opcode) bool {
 	// 解压缩没有开启
-	if !c.decompression {
+	if !c.pd.decompression {
 		return true
 	}
 
@@ -121,17 +121,6 @@ func (c *Conn) failRsv1(op opcode.Opcode) bool {
 	}
 
 	return false
-}
-
-func decode(payload []byte) ([]byte, error) {
-	r := bytes.NewReader(payload)
-	r2 := decompressNoContextTakeover(r)
-	var o bytes.Buffer
-	if _, err := io.Copy(&o, r2); err != nil {
-		return nil, err
-	}
-	r2.Close()
-	return o.Bytes(), nil
 }
 
 func (c *Conn) ReadLoop() (err error) {
@@ -227,7 +216,7 @@ func (c *Conn) readMessage() (err error) {
 			// 分段的在这返回
 			if fin {
 				// 解压缩
-				if c.fragmentFrameHeader.GetRsv1() && c.decompression {
+				if c.fragmentFrameHeader.GetRsv1() && c.pd.decompression {
 					tempBuf, err := decode(c.fragmentFramePayload)
 					if err != nil {
 						return err
@@ -266,7 +255,7 @@ func (c *Conn) readMessage() (err error) {
 			return
 		}
 
-		if rsv1 && c.decompression {
+		if rsv1 && c.pd.decompression {
 			// 不分段的解压缩
 			f.Payload, err = decode(f.Payload)
 			if err != nil {
@@ -369,7 +358,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 		}
 	}
 
-	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	rsv1 := c.pd.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
 		var out wrapBuffer
 		w := compressNoContextTakeover(&out, defaultCompressionLevel)

@@ -61,39 +61,6 @@ func secWebSocketAcceptVal(val string) string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
-// 是否打开解压缩
-func needDecompression(header http.Header) bool {
-	for _, ext := range parseExtensions(header) {
-		if ext.val == "" && ext.key != "permessage-deflate" {
-			continue
-		}
-		return true
-	}
-
-	return false
-}
-
-// 客户端用的函数
-func maybeCompressionDecompression(header http.Header) bool {
-	s := false
-	c := false
-	pd := false
-	for _, ext := range parseExtensions(header) {
-		if ext.val == "" && ext.key != "permessage-deflate" {
-			pd = true
-		}
-
-		if ext.key == "server_no_context_takeover" {
-			s = true
-		}
-
-		if ext.key == "client_no_context_takeover" {
-			c = true
-		}
-	}
-	return (s || c) && pd
-}
-
 func getHttpErrMsg(statusCode int) error {
 	errMsg := http.StatusText(statusCode)
 	if errMsg != "" {

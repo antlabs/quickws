@@ -1514,7 +1514,7 @@ func Test_CommonOption(t *testing.T) {
 				t.Error("compression fail")
 			}
 
-			if !c.decompression {
+			if !c.pd.decompression {
 				t.Error("compression fail")
 			}
 			c.StartReadLoop()

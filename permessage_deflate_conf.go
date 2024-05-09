@@ -19,17 +19,21 @@ import (
 )
 
 // https://datatracker.ietf.org/doc/html/rfc7692#section-7.1
-type permessageDeflate struct {
-	// 是否启用
+type permessageDeflateConf struct {
+	// 是否启用，压缩或者解压缩
 	enable bool
+
 	// 解压缩
 	decompression bool
+
 	// 压缩
 	compression bool
+
 	// 服务端是否支持上下文接管
 	// https://datatracker.ietf.org/doc/html/rfc7692#section-7.1.1.1
 	// 客户端可以发送 server_no_context_takeover 参数，表示服务端不需要上下文接管
 	serverContextTakeover bool
+
 	// 客户端是否支持上下文接管
 	// https://datatracker.ietf.org/doc/html/rfc7692#section-7.1.1.2
 	// 客户端发关 client_no_context_takeover 参数，表示客户端不使用上下文接管
@@ -38,6 +42,7 @@ type permessageDeflate struct {
 
 	// 客户端最大窗口位数， N=8-15, 窗口的大小2^N
 	clientMaxWindowBits uint8
+
 	// 服务端最大窗口位数， N=8-15, 窗口的大小2^N
 	serverMaxWindowBits uint8
 }
@@ -56,7 +61,8 @@ func parseMaxWindowBits(val string) (uint8, error) {
 	return uint8(bits), nil
 }
 
-func parsePermessageDeflate(header http.Header) (pmd permessageDeflate, err error) {
+// 解析Sec-Websocket-Extensions的值
+func parsePermessageDeflate(header http.Header) (pmd permessageDeflateConf, err error) {
 	params := parseExtensions(header)
 	pd := false
 	for _, param := range params {
@@ -92,11 +98,11 @@ func parsePermessageDeflate(header http.Header) (pmd permessageDeflate, err erro
 }
 
 // 是否打开解压缩
-func needDecompression(header http.Header) (pd permessageDeflate, err error) {
+func genConnPermessageDeflate(header http.Header) (pd permessageDeflateConf, err error) {
 	return parsePermessageDeflate(header)
 }
 
 // 客户端用的函数
-func maybeCompressionDecompression(header http.Header) (permessageDeflate, error) {
+func maybeCompressionDecompression(header http.Header) (permessageDeflateConf, error) {
 	return parsePermessageDeflate(header)
 }

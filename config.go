@@ -35,7 +35,7 @@ type Dialer interface {
 // 另外一种是局部声明一个配置，然后使用WithXXX函数设置配置
 type Config struct {
 	Callback
-	permessageDeflate               // 静态配置, 从WithXXX函数中获取
+	permessageDeflateConf           // 静态配置, 从WithXXX函数中获取
 	tcpNoDelay                      bool
 	replyPing                       bool              // 开启自动回复
 	decompression                   bool              // 开启解压缩功能

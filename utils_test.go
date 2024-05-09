@@ -123,7 +123,7 @@ func Test_needDecompression(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pd, err := needDecompression(tt.args.header)
+			pd, err := genConnPermessageDeflate(tt.args.header)
 			if err != nil {
 				t.Error("")
 			}

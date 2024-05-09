@@ -1,11 +1,22 @@
-// Copyright 2017 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// Copyright 2021-2024 antlabs. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package quickws
 
 import (
 	"bytes"
 	"io"
+	"unsafe"
 
 	"github.com/antlabs/wsutil/bytespool"
 	"github.com/klauspost/compress/flate"
@@ -13,50 +24,35 @@ import (
 
 var tailBytes = []byte{0x00, 0x00, 0xff, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff}
 
-type flateReadWrapper struct {
-	fr io.ReadCloser
-}
-
-func (r *flateReadWrapper) Read(p []byte) (int, error) {
-	if r.fr == nil {
-		return 0, io.ErrClosedPipe
-	}
-	n, err := r.fr.Read(p)
-	if err == io.EOF {
-		// Preemptively place the reader back in the pool. This helps with
-		// scenarios where the application does not call NextReader() soon after
-		// this final read.
-		r.Close()
-	}
-	return n, err
-}
-
-func (r *flateReadWrapper) Close() error {
-	if r.fr == nil {
-		return io.ErrClosedPipe
-	}
-	err := r.fr.Close()
-	flateReaderPool.Put(r.fr)
-	r.fr = nil
-	return err
-}
-
+// 无上下文-解压缩
 func decompressNoContextTakeover(r io.Reader) io.ReadCloser {
 	fr, _ := flateReaderPool.Get().(io.ReadCloser)
 	fr.(flate.Resetter).Reset(io.MultiReader(r, bytes.NewReader(tailBytes)), nil)
 	return &flateReadWrapper{fr}
 }
 
+// 无上下文-解压缩
 func decode(payload []byte) ([]byte, error) {
-	r := bytes.NewReader(payload)
-	r2 := decompressNoContextTakeover(r)
-	var o bytes.Buffer
-	// TODO:, 从池里面拿数据
-	if _, err := io.Copy(&o, r2); err != nil {
+	pr := bytes.NewReader(payload)
+	r := decompressNoContextTakeover(pr)
+
+	// 从池里面拿buf, 这里的2是经验值，解压缩之后是2倍的大小
+	decodeBuf := bytespool.GetBytes(len(payload) * 2)
+	// 包装下
+	out := bytes.NewBuffer((*decodeBuf)[:0])
+	// 解压缩
+	if _, err := io.Copy(out, r); err != nil {
 		return nil, err
 	}
-	r2.Close()
-	return o.Bytes(), nil
+	// 拿到解压缩之后的buf
+	outBytes := out.Bytes()
+	// 如果解压缩之后的buf和从池里面拿的buf不一样，就把从池里面拿的buf放回去
+	if unsafe.SliceData(*decodeBuf) != unsafe.SliceData(outBytes) {
+		bytespool.PutBytes(decodeBuf)
+	}
+
+	r.Close()
+	return out.Bytes(), nil
 }
 
 // 上下文-解压缩
@@ -85,13 +81,26 @@ func (d *decompressContextTakeover) decompress(payload []byte) ([]byte, error) {
 	frt.Reset(io.MultiReader(bytes.NewReader(payload), bytes.NewReader(tailBytes)), dict)
 	// 从池里面拿buf, 这里的2是经验值，解压缩之后是2倍的大小
 	decodeBuf := bytespool.GetBytes(len(payload) * 2)
-	// TODO 包装下
+	// 包装下
 	out := bytes.NewBuffer((*decodeBuf)[:0])
-	//
-	io.Copy(out, d.ReadCloser)
-	//
+	// 解压缩
+	if _, err := io.Copy(out, d.ReadCloser); err != nil {
+		return nil, err
+	}
+	// 拿到解压缩之后的buf
+	outBytes := out.Bytes()
+	// 如果解压缩之后的buf和从池里面拿的buf不一样，就把从池里面拿的buf放回去
+	if unsafe.SliceData(*decodeBuf) != unsafe.SliceData(outBytes) {
+		bytespool.PutBytes(decodeBuf)
+	}
+	// 写入dict
 	d.dict.Write(out.Bytes())
-	//
+	// 返回解压缩之后的buf
 	return out.Bytes(), nil
+
+}
+
+// 解压缩入口函数
+func (c *Conn) decode() {
 
 }

@@ -35,12 +35,42 @@ func Test_historyDict_Write(t *testing.T) {
 	}{
 		{
 			name:   "case1, data is greater than dict",
+			fields: fields{data: make([]byte, 3), ringthPos: 3},
+			args:   args{data: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+			want:   []byte{8, 9, 10},
+		},
+		{
+			name:   "case1, data is greater than dict",
 			fields: fields{data: make([]byte, 10), ringthPos: 9},
 			args:   args{data: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
 			want:   []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
+		{
+			name:   "case2, data is less than dict",
+			fields: fields{data: []byte{1, 2, 3, 4, 0, 0}, ringthPos: 4},
+			args:   args{data: []byte{7, 8, 9}},
+			want:   []byte{2, 3, 4, 7, 8, 9},
+		},
+		{
+			name:   "case2, data is less than dict",
+			fields: fields{data: []byte{0, 0, 0, 0, 0, 0}, ringthPos: 0},
+			args:   args{data: []byte{7}},
+			want:   []byte{7},
+		},
+		{
+			name:   "case2, data is less than dict",
+			fields: fields{data: []byte{0, 0, 0, 0, 0, 0}, ringthPos: 6},
+			args:   args{data: []byte{7}},
+			want:   []byte{0, 0, 0, 0, 0, 7},
+		},
+		{
+			name:   "case2, data is less than dict",
+			fields: fields{data: []byte{1, 0, 0, 0, 0}, ringthPos: 1},
+			args:   args{data: []byte{2, 3, 4, 5}},
+			want:   []byte{1, 2, 3, 4, 5},
+		},
 	}
-	for _, tt := range tests {
+	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := &historyDict{
 				data:      tt.fields.data,
@@ -48,7 +78,7 @@ func Test_historyDict_Write(t *testing.T) {
 			}
 			w.Write(tt.args.data)
 			if !reflect.DeepEqual(w.GetData(), tt.want) {
-				t.Errorf("historyDict.Write() = %v, want %v", w.GetData(), tt.want)
+				t.Errorf("index:%d, historyDict.Write() = %v, want %v", i, w.GetData(), tt.want)
 			}
 		})
 	}

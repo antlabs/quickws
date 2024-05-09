@@ -53,21 +53,21 @@ type delayWrite struct {
 }
 
 type Conn struct {
-	fr      fixedreader.FixedReader // 默认使用windows
-	c       net.Conn
-	br      *bufio.Reader     // read和fr同时只能使用一个
-	*Config                   // config 可能是全局，也可能是局部初始化得来的
-	pd      permessageDeflate // permessageDeflate局部配置
-	once    sync.Once
-	// fw fixedwriter.FixedWriter, 写不能挂载到net.Conn， 因为可能并发写
-
-	delayWrite
-	readHeadArray        [enum.MaxFrameHeaderSize]byte
-	fragmentFramePayload []byte // 存放分片帧的缓冲区
-	bufioPayload         *[]byte
-	fragmentFrameHeader  *frame.FrameHeader
-	closed               int32
-	client               bool
+	fr                   fixedreader.FixedReader       // 默认使用windows
+	c                    net.Conn                      // net.Conn
+	br                   *bufio.Reader                 // read和fr同时只能使用一个
+	*Config                                            // config 可能是全局，也可能是局部初始化得来的
+	pd                   permessageDeflateConf         // permessageDeflate局部配置
+	once                 sync.Once                     // 清理资源的once
+	readHeadArray        [enum.MaxFrameHeaderSize]byte // 读取数据的头部
+	fragmentFramePayload []byte                        // 存放分段帧的缓冲区
+	bufioPayload         *[]byte                       // bufio模式下的缓冲区, 默认为nil
+	fragmentFrameHeader  *frame.FrameHeader            // 存放分段帧的头部
+	closed               int32                         // 0: open, 1: closed
+	client               bool                          // client(true) or server(flase)
+	initLazyResource     sync.Mutex                    // 初始化资源的锁
+	*delayWrite                                        // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
+	// DecompressContextTakeover
 }
 
 func setNoDelay(c net.Conn, noDelay bool) error {
@@ -506,6 +506,16 @@ func (c *Conn) writerDelayBufInner() (err error) {
 // 1. 如果缓存的消息超过了多少条数
 // 2. 如果缓存的消费超过了多久的时间
 // 3. TODO: 最大缓存多少字节
+
+func (c *Conn) initDelayWrite() {
+	if c.delayWrite == nil {
+		c.initLazyResource.Lock()
+		if c.delayWrite == nil {
+			c.delayWrite = &delayWrite{}
+		}
+		c.initLazyResource.Unlock()
+	}
+}
 func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	if atomic.LoadInt32(&c.closed) == 1 {
 		return ErrClosed
@@ -517,6 +527,8 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 		}
 	}
 
+	// 初始化对应的资源
+	c.initDelayWrite()
 	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
 		var out wrapBuffer

@@ -29,28 +29,29 @@ func NewHistoryDict(ringthPos int) *historyDict {
 
 func (w *historyDict) Write(data []byte) {
 
-	// 第一种情况。
+	// 第1种情况。
 	// 新的数据大于dict的长度, 直接覆盖
 	if len(data) >= len(w.data) {
 		copy(w.data, data[len(data)-len(w.data):])
-		w.ringthPos = len(w.data) - 1
+		w.ringthPos = len(w.data)
 		return
 	}
 
-	// 第二种情况。
+	// 第2种情况。
 	// 剩余空间已经不够放旧的数据了，这时候需要将旧的数据往前移动
 	// w.data=[A B C D E F G H I J 0 0]
 	// w.ringthPos=9
 	// data       [3 4 5 6 7 8 9]
 	// w.data [I J 3 4 5 6 7 8 9 0]
 	if len(data) > len(w.data)-w.ringthPos {
-		moveSize := w.ringthPos - (len(w.data) - len(data))
-		copy(w.data[:moveSize], w.data[w.ringthPos-moveSize:w.ringthPos])
-		w.ringthPos = moveSize
+		oldPos := len(w.data) - len(data)
+		moveSize := w.ringthPos - oldPos
+		copy(w.data, w.data[moveSize:w.ringthPos])
+		w.ringthPos = oldPos
 		// 第二种情况， 旧数据从尾巴移到头部就变成第三种情况，所以这里不会return
 	}
 
-	// 第三情况，空间是够的
+	// 第3情况，空间是够的, 直接放到后面
 	copy(w.data[w.ringthPos:], data)
 	w.ringthPos += len(data)
 }

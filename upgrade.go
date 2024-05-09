@@ -91,9 +91,9 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 
 	// 是否打开解压缩
 	// 外层接收压缩, 并且客户端发送扩展过来
-	var pd permessageDeflate
+	var pd permessageDeflateConf
 	if conf.decompression {
-		pd, err = needDecompression(r.Header)
+		pd, err = genConnPermessageDeflate(r.Header)
 		if err != nil {
 			return nil, err
 		}

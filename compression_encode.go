@@ -1,109 +1,98 @@
-// Copyright 2017 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
+// Copyright 2021-2024 antlabs. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package quickws
 
 import (
-	"compress/flate"
-	"errors"
+	"bytes"
 	"io"
-	"sync"
+	"unsafe"
+
+	"github.com/antlabs/wsutil/bytespool"
+	"github.com/antlabs/wsutil/enum"
+	"github.com/klauspost/compress/flate"
 )
 
-const (
-	minCompressionLevel     = -2 // flate.HuffmanOnly not defined in Go < 1.6
-	maxCompressionLevel     = flate.BestCompression
-	defaultCompressionLevel = 1
-)
-
-var (
-	flateWriterPools [maxCompressionLevel - minCompressionLevel + 1]sync.Pool
-	flateReaderPool  = sync.Pool{New: func() interface{} {
-		return flate.NewReader(nil)
-	}}
-)
-
-/*
-func isValidCompressionLevel(level int) bool {
-	return minCompressionLevel <= level && level <= maxCompressionLevel
+type enCompressContextTakeover struct {
+	dict historyDict
+	w    *flate.Writer
 }
-*/
 
-func compressNoContextTakeover(w io.WriteCloser, level int) io.WriteCloser {
-	p := &flateWriterPools[level-minCompressionLevel]
-	tw := &truncWriter{w: w}
-	fw, _ := p.Get().(*flate.Writer)
-	if fw == nil {
-		fw, _ = flate.NewWriter(tw, level)
-	} else {
-		fw.Reset(tw)
+var enTail = []byte{0, 0, 0xff, 0xff}
+
+func newEncompressContextTakeover(bit uint8) (en *enCompressContextTakeover, err error) {
+	size := 1 << bit
+	w, err := flate.NewWriterWindow(nil, size)
+	if err != nil {
+		return nil, err
 	}
-	return &flateWriteWrapper{fw: fw, tw: tw, p: p}
+	en = &enCompressContextTakeover{w: w}
+	en.dict.InitHistoryDict(size)
+	return en, nil
 }
 
-// truncWriter is an io.Writer that writes all but the last four bytes of the
-// stream to another io.Writer.
-type truncWriter struct {
-	w io.WriteCloser
-	n int
-	p [4]byte
-}
+func (e *enCompressContextTakeover) encompress(payload []byte) (encodePayload *[]byte, err error) {
 
-func (w *truncWriter) Write(p []byte) (int, error) {
-	n := 0
+	encodeBuf := bytespool.GetBytes(len(payload) + enum.MaxFrameHeaderSize)
 
-	// fill buffer first for simplicity.
-	if w.n < len(w.p) {
-		n = copy(w.p[w.n:], p)
-		p = p[n:]
-		w.n += n
-		if len(p) == 0 {
-			return n, nil
+	out := wrapBuffer{Buffer: bytes.NewBuffer((*encodeBuf)[:0])}
+	e.w.ResetDict(out, e.dict.GetData())
+	if _, err = io.Copy(e.w, bytes.NewReader(payload)); err != nil {
+		return nil, err
+	}
+
+	if err = e.w.Flush(); err != nil {
+		return nil, err
+	}
+
+	if out.Len() >= 4 {
+		last4 := out.Bytes()[out.Len()-4:]
+		if !bytes.Equal(last4, enTail) {
+			return nil, ErrUnexpectedFlateStream
 		}
 	}
 
-	m := len(p)
-	if m > len(w.p) {
-		m = len(w.p)
+	if unsafe.SliceData(*encodeBuf) != unsafe.SliceData(out.Buffer.Bytes()) {
+		bytespool.PutBytes(encodeBuf)
 	}
 
-	if nn, err := w.w.Write(w.p[:m]); err != nil {
-		return n + nn, err
-	}
-
-	copy(w.p[:], w.p[m:])
-	copy(w.p[len(w.p)-m:], p[len(p)-m:])
-	nn, err := w.w.Write(p[:len(p)-m])
-	return n + nn, err
+	outBuf := out.Bytes()
+	return &outBuf, nil
 }
 
-type flateWriteWrapper struct {
-	fw *flate.Writer
-	tw *truncWriter
-	p  *sync.Pool
-}
+func (c *Conn) encoode(payload []byte) (encodePayload *[]byte, err error) {
 
-func (w *flateWriteWrapper) Write(p []byte) (int, error) {
-	if w.fw == nil {
-		return 0, ErrWriteClosed
-	}
-	return w.fw.Write(p)
-}
+	ct := (c.pd.clientContextTakeover && c.client || !c.client && c.pd.serverContextTakeover) && c.compression
+	// 上下文接管
+	if ct {
+		// 这里的读取是单go程的。所以不用加锁
+		if c.enCtx == nil {
 
-func (w *flateWriteWrapper) Close() error {
-	if w.fw == nil {
-		return ErrWriteClosed
+			bit := uint8(0)
+			if c.client {
+				bit = c.pd.clientMaxWindowBits
+			} else {
+				bit = c.pd.serverMaxWindowBits
+			}
+			c.enCtx, err = newEncompressContextTakeover(bit)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return c.enCtx.encompress(payload)
 	}
-	err1 := w.fw.Flush()
-	w.p.Put(w.fw)
-	w.fw = nil
-	if w.tw.p != [4]byte{0, 0, 0xff, 0xff} {
-		return errors.New("websocket: internal error, unexpected bytes at end of flate stream")
-	}
-	err2 := w.tw.w.Close()
-	if err1 != nil {
-		return err1
-	}
-	return err2
+
+	// 非上下文按管
+	return compressNoContextTakeover(payload, defaultCompressionLevel)
 }

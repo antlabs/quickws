@@ -20,7 +20,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math/rand"
 	"net"
 	"sync"
@@ -45,7 +44,6 @@ const (
 
 // 延迟写, 基于次数和时间 合并数据写入, 实验功能
 type delayWrite struct {
-	delayMu      sync.Mutex    // 延迟写的锁
 	delayBuf     *bytes.Buffer // 延迟写的缓冲区
 	delayTimeout *time.Timer   // 延迟写的定时器
 	delayErr     error         // TODO 原子操作
@@ -63,11 +61,13 @@ type Conn struct {
 	fragmentFramePayload []byte                        // 存放分段帧的缓冲区
 	bufioPayload         *[]byte                       // bufio模式下的缓冲区, 默认为nil
 	fragmentFrameHeader  *frame.FrameHeader            // 存放分段帧的头部
+	initLazyResource     sync.Mutex                    // 初始化资源的锁
+	wmu                  sync.Mutex                    // 写的锁
+	*delayWrite                                        // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
+	deCtx                *deCompressContextTakeover    // 解压缩上下文
+	enCtx                *enCompressContextTakeover    // 压缩上下文
 	closed               int32                         // 0: open, 1: closed
 	client               bool                          // client(true) or server(flase)
-	initLazyResource     sync.Mutex                    // 初始化资源的锁
-	*delayWrite                                        // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
-	// DecompressContextTakeover
 }
 
 func setNoDelay(c net.Conn, noDelay bool) error {
@@ -161,7 +161,7 @@ func (c *Conn) StartReadLoop() {
 	}()
 }
 
-func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPayload *[]byte) (f frame.Frame, err error) {
+func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPayload *[]byte) (f frame.Frame2, err error) {
 	if c.readTimeout > 0 {
 		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
 		if err != nil {
@@ -171,9 +171,9 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPa
 	}
 
 	if c.fr.IsInit() {
-		f, err = frame.ReadFrameFromWindows(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
+		f, err = frame.ReadFrameFromWindowsV2(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
 	} else {
-		f, err = frame.ReadFrameFromReader(c.br, headArray, bufioPayload)
+		f, err = frame.ReadFrameFromReaderV2(c.br, headArray, bufioPayload)
 	}
 	if err != nil {
 		c.Callback.OnClose(c, err)
@@ -211,17 +211,17 @@ func (c *Conn) readMessage() (err error) {
 	fin := f.GetFin()
 	if c.fragmentFrameHeader != nil && !f.Opcode.IsControl() {
 		if f.Opcode == 0 {
-			c.fragmentFramePayload = append(c.fragmentFramePayload, f.Payload...)
+			c.fragmentFramePayload = append(c.fragmentFramePayload, *f.Payload...)
 
 			// 分段的在这返回
 			if fin {
 				// 解压缩
 				if c.fragmentFrameHeader.GetRsv1() && c.pd.decompression {
-					tempBuf, err := decode(c.fragmentFramePayload)
+					tempBuf, err := decodeNoTontext(c.fragmentFramePayload)
 					if err != nil {
 						return err
 					}
-					c.fragmentFramePayload = tempBuf
+					c.fragmentFramePayload = *tempBuf
 				}
 				// 这里的check按道理应该放到f.Fin前面， 会更符合rfc的标准, 前提是c.utf8Check修改成流式解析
 				// TODO c.utf8Check 修改成流式解析
@@ -246,7 +246,7 @@ func (c *Conn) readMessage() (err error) {
 			prevFrame := f.FrameHeader
 			// 第一次分段
 			if len(c.fragmentFramePayload) == 0 {
-				c.fragmentFramePayload = append(c.fragmentFramePayload, f.Payload...)
+				c.fragmentFramePayload = append(c.fragmentFramePayload, *f.Payload...)
 				f.Payload = nil
 			}
 
@@ -255,23 +255,28 @@ func (c *Conn) readMessage() (err error) {
 			return
 		}
 
+		decompression := false
 		if rsv1 && c.pd.decompression {
 			// 不分段的解压缩
-			f.Payload, err = decode(f.Payload)
+			f.Payload, err = c.decode(*f.Payload)
 			if err != nil {
 				return err
 			}
+			decompression = true
 		}
 
 		if f.Opcode == opcode.Text {
-			if !c.utf8Check(f.Payload) {
+			if !c.utf8Check(*f.Payload) {
 				c.c.Close()
 				c.Callback.OnClose(c, ErrTextNotUTF8)
 				return ErrTextNotUTF8
 			}
 		}
 
-		c.Callback.OnMessage(c, f.Opcode, f.Payload)
+		c.Callback.OnMessage(c, f.Opcode, *f.Payload)
+		if decompression {
+			bytespool.PutBytes(f.Payload)
+		}
 		return
 	}
 
@@ -288,29 +293,29 @@ func (c *Conn) readMessage() (err error) {
 		}
 
 		if f.Opcode == Close {
-			if len(f.Payload) == 0 {
+			if len(*f.Payload) == 0 {
 				return c.writeErrAndOnClose(NormalClosure, ErrClosePayloadTooSmall)
 			}
 
-			if len(f.Payload) < 2 {
+			if len(*f.Payload) < 2 {
 				return c.writeErrAndOnClose(ProtocolError, ErrClosePayloadTooSmall)
 			}
 
-			if !c.utf8Check(f.Payload[2:]) {
+			if !c.utf8Check((*f.Payload)[2:]) {
 				return c.writeErrAndOnClose(ProtocolError, ErrTextNotUTF8)
 			}
 
-			code := binary.BigEndian.Uint16(f.Payload)
+			code := binary.BigEndian.Uint16(*f.Payload)
 			if !validCode(code) {
 				return c.writeErrAndOnClose(ProtocolError, ErrCloseValue)
 			}
 
 			// 回敬一个close包
-			if err := c.WriteTimeout(Close, f.Payload, 2*time.Second); err != nil {
+			if err := c.WriteTimeout(Close, *f.Payload, 2*time.Second); err != nil {
 				return err
 			}
 
-			err = bytesToCloseErrMsg(f.Payload)
+			err = bytesToCloseErrMsg(*f.Payload)
 			c.Callback.OnClose(c, err)
 			return err
 		}
@@ -318,11 +323,11 @@ func (c *Conn) readMessage() (err error) {
 		if f.Opcode == Ping {
 			// 回一个pong包
 			if c.replyPing {
-				if err := c.WriteTimeout(Pong, f.Payload, 2*time.Second); err != nil {
+				if err := c.WriteTimeout(Pong, *f.Payload, 2*time.Second); err != nil {
 					c.Callback.OnClose(c, err)
 					return err
 				}
-				c.Callback.OnMessage(c, f.Opcode, f.Payload)
+				c.Callback.OnMessage(c, f.Opcode, *f.Payload)
 				return
 			}
 		}
@@ -340,7 +345,7 @@ func (c *Conn) readMessage() (err error) {
 }
 
 type wrapBuffer struct {
-	bytes.Buffer
+	*bytes.Buffer
 }
 
 func (w *wrapBuffer) Close() error {
@@ -360,16 +365,13 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 
 	rsv1 := c.pd.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		var out wrapBuffer
-		w := compressNoContextTakeover(&out, defaultCompressionLevel)
-		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-			return
+		writeBufPtr, err := compressNoContextTakeover(writeBuf, defaultCompressionLevel)
+		if err != nil {
+			return err
 		}
 
-		if err = w.Close(); err != nil {
-			return
-		}
-		writeBuf = out.Bytes()
+		defer bytespool.PutBytes(&writeBuf)
+		writeBuf = *writeBufPtr
 	}
 
 	// f.Opcode = op
@@ -432,16 +434,12 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 
 	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		var out wrapBuffer
-		w := compressNoContextTakeover(&out, defaultCompressionLevel)
-		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-			return
+		writeBufPtr, err := compressNoContextTakeover(writeBuf, defaultCompressionLevel)
+		if err != nil {
+			return err
 		}
-
-		if err = w.Close(); err != nil {
-			return
-		}
-		writeBuf = out.Bytes()
+		defer bytespool.PutBytes(writeBufPtr)
+		writeBuf = *writeBufPtr
 	}
 
 	// f.Opcode = op
@@ -469,21 +467,21 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 func (c *Conn) Close() (err error) {
 	c.once.Do(func() {
 		err = c.c.Close()
-		c.delayMu.Lock()
+		c.wmu.Lock()
 		if c.delayTimeout != nil {
 			c.delayTimeout.Stop()
 			c.delayBuf = nil
 		}
-		c.delayMu.Unlock()
+		c.wmu.Unlock()
 		atomic.StoreInt32(&c.closed, 1)
 	})
 	return
 }
 
 func (c *Conn) writerDelayBufSafe() {
-	c.delayMu.Lock()
+	c.wmu.Lock()
 	c.delayErr = c.writerDelayBufInner()
-	c.delayMu.Unlock()
+	c.wmu.Unlock()
 }
 
 func (c *Conn) writerDelayBufInner() (err error) {
@@ -531,19 +529,15 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	c.initDelayWrite()
 	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		var out wrapBuffer
-		w := compressNoContextTakeover(&out, defaultCompressionLevel)
-		if _, err = io.Copy(w, bytes.NewReader(writeBuf)); err != nil {
-			return
+		writeBufPtr, err := compressNoContextTakeover(writeBuf, defaultCompressionLevel)
+		if err != nil {
+			return err
 		}
-
-		if err = w.Close(); err != nil {
-			return
-		}
-		writeBuf = out.Bytes()
+		defer bytespool.PutBytes(writeBufPtr)
+		writeBuf = *writeBufPtr
 	}
 
-	c.delayMu.Lock()
+	c.wmu.Lock()
 	// 初始化缓存
 	if c.delayBuf == nil && c.delayWriteInitBufferSize > 0 {
 
@@ -555,22 +549,22 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	if c.delayTimeout == nil && c.maxDelayWriteDuration > 0 {
 		c.delayTimeout = time.AfterFunc(c.maxDelayWriteDuration, c.writerDelayBufSafe)
 	}
-	c.delayMu.Unlock()
+	c.wmu.Unlock()
 
 	maskValue := uint32(0)
 	if c.client {
 		maskValue = rand.Uint32()
 	}
 	// 缓存的消息超过最大值, 则直接写入
-	c.delayMu.Lock()
+	c.wmu.Lock()
 	if c.delayNum+1 == c.maxDelayWriteNum {
 		err = frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 		if err != nil {
-			c.delayMu.Unlock()
+			c.wmu.Unlock()
 			return err
 		}
 		err = c.writerDelayBufInner()
-		c.delayMu.Unlock()
+		c.wmu.Unlock()
 		return err
 	}
 
@@ -579,6 +573,6 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 		err = frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 	}
 	c.delayNum++ // 对记数计+1
-	c.delayMu.Unlock()
+	c.wmu.Unlock()
 	return err
 }

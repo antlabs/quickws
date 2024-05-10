@@ -20,11 +20,9 @@ type historyDict struct {
 	ringthPos int
 }
 
-func NewHistoryDict(ringthPos int) *historyDict {
-	return &historyDict{
-		data:      make([]byte, ringthPos),
-		ringthPos: ringthPos,
-	}
+func (w *historyDict) InitHistoryDict(ringthPos int) {
+	w.data = make([]byte, ringthPos)
+	w.ringthPos = ringthPos
 }
 
 func (w *historyDict) Write(data []byte) {

@@ -32,7 +32,7 @@ func decompressNoContextTakeover(r io.Reader) io.ReadCloser {
 }
 
 // 无上下文-解压缩
-func decode(payload []byte) ([]byte, error) {
+func decodeNoTontext(payload []byte) (*[]byte, error) {
 	pr := bytes.NewReader(payload)
 	r := decompressNoContextTakeover(pr)
 
@@ -52,27 +52,28 @@ func decode(payload []byte) ([]byte, error) {
 	}
 
 	r.Close()
-	return out.Bytes(), nil
+	return &outBytes, nil
 }
 
 // 上下文-解压缩
-type decompressContextTakeover struct {
+type deCompressContextTakeover struct {
 	dict historyDict
 	io.ReadCloser
 }
 
 // 初始化一个对象
-func newDecompressContextTakeover(bit int) (*decompressContextTakeover, error) {
+func newDecompressContextTakeover(bit uint8) (*deCompressContextTakeover, error) {
 	size := 1 << uint(bit)
 	r := flate.NewReader(nil)
-	return &decompressContextTakeover{
-		dict:       *NewHistoryDict(size),
+	de := &deCompressContextTakeover{
 		ReadCloser: r,
-	}, nil
+	}
+	de.dict.InitHistoryDict(size)
+	return de, nil
 }
 
 // 解压缩
-func (d *decompressContextTakeover) decompress(payload []byte) ([]byte, error) {
+func (d *deCompressContextTakeover) decompress(payload []byte) (*[]byte, error) {
 	// 获取dict
 	dict := d.dict.GetData()
 	// 拿到接口
@@ -96,11 +97,33 @@ func (d *decompressContextTakeover) decompress(payload []byte) ([]byte, error) {
 	// 写入dict
 	d.dict.Write(out.Bytes())
 	// 返回解压缩之后的buf
-	return out.Bytes(), nil
+	return &outBytes, nil
 
 }
 
 // 解压缩入口函数
-func (c *Conn) decode() {
+func (c *Conn) decode(payload []byte) (decodePayload *[]byte, err error) {
+	ct := (c.pd.clientContextTakeover && c.client || !c.client && c.pd.serverContextTakeover) && c.decompression
+	// 上下文接管
+	if ct {
+		// 这里的读取是单go程的。所以不用加锁
+		if c.deCtx == nil {
 
+			bit := uint8(0)
+			if c.client {
+				bit = c.pd.clientMaxWindowBits
+			} else {
+				bit = c.pd.serverMaxWindowBits
+			}
+			c.deCtx, err = newDecompressContextTakeover(bit)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return c.deCtx.decompress(payload)
+	}
+
+	// 非上下文按管
+	return decodeNoTontext(payload)
 }

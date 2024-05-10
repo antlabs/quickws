@@ -43,3 +43,7 @@ var (
 	ErrEmptyClose           = errors.New("error:close value is empty") // close的值是空的
 	ErrWriteClosed          = errors.New("write close")
 )
+
+var (
+	ErrUnexpectedFlateStream = errors.New("quickws: internal error, unexpected bytes at end of flate stream")
+)

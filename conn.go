@@ -19,7 +19,9 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"sync"
@@ -29,10 +31,12 @@ import (
 
 	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
+	"github.com/antlabs/wsutil/deflate"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
 	"github.com/antlabs/wsutil/fixedwriter"
 	"github.com/antlabs/wsutil/frame"
+	"github.com/antlabs/wsutil/limitreader"
 	"github.com/antlabs/wsutil/opcode"
 )
 
@@ -51,23 +55,23 @@ type delayWrite struct {
 }
 
 type Conn struct {
-	fr                   fixedreader.FixedReader       // 默认使用windows
-	c                    net.Conn                      // net.Conn
-	br                   *bufio.Reader                 // read和fr同时只能使用一个
-	*Config                                            // config 可能是全局，也可能是局部初始化得来的
-	pd                   permessageDeflateConf         // permessageDeflate局部配置
-	once                 sync.Once                     // 清理资源的once
-	readHeadArray        [enum.MaxFrameHeaderSize]byte // 读取数据的头部
-	fragmentFramePayload []byte                        // 存放分段帧的缓冲区
-	bufioPayload         *[]byte                       // bufio模式下的缓冲区, 默认为nil
-	fragmentFrameHeader  *frame.FrameHeader            // 存放分段帧的头部
-	initLazyResource     sync.Mutex                    // 初始化资源的锁
-	wmu                  sync.Mutex                    // 写的锁
-	*delayWrite                                        // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
-	deCtx                *deCompressContextTakeover    // 解压缩上下文
-	enCtx                *enCompressContextTakeover    // 压缩上下文
-	closed               int32                         // 0: open, 1: closed
-	client               bool                          // client(true) or server(flase)
+	fr                   fixedreader.FixedReader            // 默认使用windows
+	c                    net.Conn                           // net.Conn
+	br                   *bufio.Reader                      // read和fr同时只能使用一个
+	*Config                                                 // config 可能是全局，也可能是局部初始化得来的
+	pd                   deflate.PermessageDeflateConf      // permessageDeflate局部配置
+	once                 sync.Once                          // 清理资源的once
+	readHeadArray        [enum.MaxFrameHeaderSize]byte      // 读取数据的头部
+	fragmentFramePayload []byte                             // 存放分段帧的缓冲区
+	bufioPayload         *[]byte                            // bufio模式下的缓冲区, 默认为nil
+	fragmentFrameHeader  *frame.FrameHeader                 // 存放分段帧的头部
+	initLazyResource     sync.Mutex                         // 初始化资源的锁
+	wmu                  sync.Mutex                         // 写的锁
+	*delayWrite                                             // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
+	deCtx                *deflate.DeCompressContextTakeover // 解压缩上下文
+	enCtx                *deflate.EnCompressContextTakeover // 压缩上下文
+	closed               int32                              // 0: open, 1: closed
+	client               bool                               // client(true) or server(flase)
 }
 
 func setNoDelay(c net.Conn, noDelay bool) error {
@@ -100,9 +104,21 @@ func (c *Conn) NetConn() net.Conn {
 	return c.c
 }
 
+func (c *Conn) writeAndMaybeOnClose(err error) error {
+	var sc *StatusCode
+	defer c.Callback.OnClose(c, err)
+
+	if errors.As(err, &sc) {
+		if err := c.WriteTimeout(opcode.Close, sc.toBytes(), 2*time.Second); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
 	defer c.Callback.OnClose(c, userErr)
-	if err := c.WriteTimeout(opcode.Close, statusCodeToBytes(code), 2*time.Second); err != nil {
+	if err := c.WriteTimeout(opcode.Close, code.toBytes(), 2*time.Second); err != nil {
 		return err
 	}
 
@@ -111,7 +127,7 @@ func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
 
 func (c *Conn) failRsv1(op opcode.Opcode) bool {
 	// 解压缩没有开启
-	if !c.pd.decompression {
+	if !c.pd.Decompression {
 		return true
 	}
 
@@ -171,12 +187,19 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPa
 	}
 
 	if c.fr.IsInit() {
-		f, err = frame.ReadFrameFromWindowsV2(&c.fr, headArray, c.windowsMultipleTimesPayloadSize)
+		f, err = frame.ReadFrameFromWindowsV2(&c.fr, headArray, c.windowsMultipleTimesPayloadSize, c.readMaxMessage)
+		if err == frame.ErrTooLargePayload {
+			err = TooBigMessage
+		}
 	} else {
-		f, err = frame.ReadFrameFromReaderV2(c.br, headArray, bufioPayload)
+		r := io.Reader(c.br)
+		if c.readMaxMessage > 0 {
+			r = limitreader.NewLimitReader(c.br, c.readMaxMessage)
+		}
+		f, err = frame.ReadFrameFromReaderV2(r, headArray, bufioPayload)
 	}
 	if err != nil {
-		c.Callback.OnClose(c, err)
+		c.writeAndMaybeOnClose(err)
 		return
 	}
 
@@ -216,8 +239,8 @@ func (c *Conn) readMessage() (err error) {
 			// 分段的在这返回
 			if fin {
 				// 解压缩
-				if c.fragmentFrameHeader.GetRsv1() && c.pd.decompression {
-					tempBuf, err := decodeNoTontext(c.fragmentFramePayload)
+				if c.fragmentFrameHeader.GetRsv1() && c.pd.Decompression {
+					tempBuf, err := c.decode(c.fragmentFramePayload)
 					if err != nil {
 						return err
 					}
@@ -256,7 +279,7 @@ func (c *Conn) readMessage() (err error) {
 		}
 
 		decompression := false
-		if rsv1 && c.pd.decompression {
+		if rsv1 && c.pd.Decompression {
 			// 不分段的解压缩
 			f.Payload, err = c.decode(*f.Payload)
 			if err != nil {
@@ -344,14 +367,6 @@ func (c *Conn) readMessage() (err error) {
 	return ErrOpcode
 }
 
-type wrapBuffer struct {
-	*bytes.Buffer
-}
-
-func (w *wrapBuffer) Close() error {
-	return nil
-}
-
 func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 	if atomic.LoadInt32(&c.closed) == 1 {
 		return ErrClosed
@@ -363,9 +378,9 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 		}
 	}
 
-	rsv1 := c.pd.compression && (op == opcode.Text || op == opcode.Binary)
+	rsv1 := c.pd.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		writeBufPtr, err := compressNoContextTakeover(writeBuf, defaultCompressionLevel)
+		writeBufPtr, err := c.encoode(writeBuf)
 		if err != nil {
 			return err
 		}
@@ -399,7 +414,7 @@ func (c *Conn) WriteTimeout(op Opcode, data []byte, t time.Duration) (err error)
 }
 
 func (c *Conn) WriteCloseTimeout(sc StatusCode, t time.Duration) (err error) {
-	buf := statusCodeToBytes(sc)
+	buf := sc.toBytes()
 	return c.WriteTimeout(opcode.Close, buf, t)
 }
 
@@ -434,7 +449,7 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 
 	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		writeBufPtr, err := compressNoContextTakeover(writeBuf, defaultCompressionLevel)
+		writeBufPtr, err := c.encoode(writeBuf)
 		if err != nil {
 			return err
 		}
@@ -468,7 +483,7 @@ func (c *Conn) Close() (err error) {
 	c.once.Do(func() {
 		err = c.c.Close()
 		c.wmu.Lock()
-		if c.delayTimeout != nil {
+		if c.delayWrite != nil && c.delayTimeout != nil {
 			c.delayTimeout.Stop()
 			c.delayBuf = nil
 		}
@@ -529,7 +544,7 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	c.initDelayWrite()
 	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		writeBufPtr, err := compressNoContextTakeover(writeBuf, defaultCompressionLevel)
+		writeBufPtr, err := c.encoode(writeBuf)
 		if err != nil {
 			return err
 		}

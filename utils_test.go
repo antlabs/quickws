@@ -15,7 +15,6 @@
 package quickws
 
 import (
-	"net/http"
 	"reflect"
 	"testing"
 )
@@ -104,57 +103,6 @@ func Test_secWebSocketAcceptVal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := secWebSocketAcceptVal(tt.args.val); len(got) == 0 {
 				t.Errorf("secWebSocketAcceptVal() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_needDecompression(t *testing.T) {
-	type args struct {
-		header http.Header
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{name: "test1", args: args{header: http.Header{"Sec-Websocket-Extensions": {"permessage-deflate; server_no_context_takeover; client_no_context_takeover"}}}, want: true},
-		{name: "test2", args: args{header: http.Header{"Sec-Websocket-Extensions": {"xx"}}}, want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pd, err := genConnPermessageDeflate(tt.args.header)
-			if err != nil {
-				t.Error("")
-			}
-			if pd.enable != tt.want {
-				t.Errorf("needDecompression() = %v, want %v", pd, tt.want)
-			}
-		})
-	}
-}
-
-func Test_maybeCompressionDecompression(t *testing.T) {
-	type args struct {
-		header http.Header
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{name: "test1", args: args{header: http.Header{"Sec-Websocket-Extensions": {"permessage-deflate; server_no_context_takeover; client_no_context_takeover"}}}, want: true},
-		{name: "test2", args: args{header: http.Header{"Sec-Websocket-Extensions": {"xx"}}}, want: false},
-	}
-	for index, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pd, err := maybeCompressionDecompression(tt.args.header)
-			if err != nil {
-				t.Errorf("maybeCompressionDecompression() error:%v\n", err)
-				return
-			}
-			if pd.enable != tt.want {
-				t.Errorf("index:%d, maybeCompressionDecompression() = %v, want %v", index, pd, tt.want)
 			}
 		})
 	}

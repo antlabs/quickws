@@ -1113,12 +1113,14 @@ func Test_CommonOption(t *testing.T) {
 		}))
 		if err != nil {
 			t.Error(err)
+			return
 		}
 		defer con.Close()
 
 		err = con.WriteMessage(Binary, []byte("hello"))
 		if err != nil {
 			t.Error(err)
+			return
 		}
 
 		con.StartReadLoop()
@@ -1514,7 +1516,7 @@ func Test_CommonOption(t *testing.T) {
 				t.Error("compression fail")
 			}
 
-			if !c.pd.decompression {
+			if !c.pd.Decompression {
 				t.Error("compression fail")
 			}
 			c.StartReadLoop()

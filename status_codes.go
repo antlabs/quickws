@@ -70,6 +70,17 @@ func (s StatusCode) String() string {
 	return "unkown"
 }
 
+func (s StatusCode) Error() string {
+	return s.String()
+}
+
+func (s StatusCode) toBytes() (rv []byte) {
+	rv = make([]byte, 2+len(s.String()))
+	binary.BigEndian.PutUint16(rv, uint16(s))
+	copy(rv[2:], s.String())
+	return
+}
+
 type CloseErrMsg struct {
 	Code StatusCode
 	Msg  string
@@ -104,13 +115,6 @@ func bytesToCloseErrMsg(payload []byte) *CloseErrMsg {
 		ce.Msg = string(payload[3:])
 	}
 	return &ce
-}
-
-func statusCodeToBytes(code StatusCode) (rv []byte) {
-	rv = make([]byte, 2+len(code.String()))
-	binary.BigEndian.PutUint16(rv, uint16(code))
-	copy(rv[2:], code.String())
-	return
 }
 
 func validCode(code uint16) bool {

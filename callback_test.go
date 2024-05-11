@@ -34,6 +34,11 @@ func Test_DefaultCallback(t *testing.T) {
 			c, err := Upgrade(w, r, WithServerCallback(&testDefaultCallback{}))
 			if err != nil {
 				t.Error(err)
+				return
+			}
+			if c == nil {
+				t.Error("conn is nil")
+				return
 			}
 			defer c.Close()
 			c.StartReadLoop()
@@ -41,6 +46,7 @@ func Test_DefaultCallback(t *testing.T) {
 			err = c.WriteMessage(Binary, []byte("hello"))
 			if err != nil {
 				t.Error(err)
+				return
 			}
 
 			atomic.AddInt32(&run, int32(1))
@@ -53,6 +59,7 @@ func Test_DefaultCallback(t *testing.T) {
 		con, err := Dial(url, WithClientCallback(&testDefaultCallback{}))
 		if err != nil {
 			t.Error(err)
+			return
 		}
 		defer con.Close()
 

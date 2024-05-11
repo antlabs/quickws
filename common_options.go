@@ -335,41 +335,41 @@ func WithServerSubprotocols(subprotocols []string) ServerOption {
 // 21.1 设置客户端支持上下文接管, 默认不支持上下文接管
 func WithClientContextTakeover() ServerOption {
 	return func(o *ConnOption) {
-		o.clientContextTakeover = false
+		o.ClientContextTakeover = false
 	}
 }
 
 // 21.2 设置服务端支持上下文接管, 默认不支持上下文接管
 func WithServerContextTakeover() ServerOption {
 	return func(o *ConnOption) {
-		o.serverContextTakeover = false
+		o.ServerContextTakeover = false
 	}
 }
 
 // 21.1 设置客户端最大窗口位数，使用上下文接管时，这个参数才有效
 func WithClientMaxWindowsBits(bits uint8) ClientOption {
 	return func(o *DialOption) {
-		o.clientMaxWindowBits = bits
+		o.ClientMaxWindowBits = bits
 	}
 }
 
 // 22.2 设置服务端最大窗口位数, 使用上下文接管时，这个参数才有效
 func WithServerMaxWindowBits(bits uint8) ServerOption {
 	return func(o *ConnOption) {
-		o.serverMaxWindowBits = bits
+		o.ServerMaxWindowBits = bits
 	}
 }
 
-// 22.1 设置客户端最大可以处理的message的大小, 默认没有限制
-func WithClientMaxMessage(size int64) ClientOption {
+// 22.1 设置客户端最大可以读取的message的大小, 默认没有限制
+func WithClientReadMaxMessage(size int64) ClientOption {
 	return func(o *DialOption) {
-		o.maxMessage = size
+		o.readMaxMessage = size
 	}
 }
 
-// 22.2 设置服务端最大可以处理的message的大小，默认没有限制
-func WithServerMaxMessage(size int64) ServerOption {
+// 22.2 设置服务端最大可以读取的message的大小，默认没有限制
+func WithServerReadMaxMessage(size int64) ServerOption {
 	return func(o *ConnOption) {
-		o.maxMessage = size
+		o.readMaxMessage = size
 	}
 }

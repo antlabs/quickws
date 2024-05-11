@@ -26,6 +26,7 @@ import (
 
 	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
+	"github.com/antlabs/wsutil/deflate"
 	"github.com/antlabs/wsutil/enum"
 	"github.com/antlabs/wsutil/fixedreader"
 	"github.com/antlabs/wsutil/hostname"
@@ -258,12 +259,15 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		*d.bindClientHttpHeader = rsp.Header.Clone()
 	}
 
-	pd, err := maybeCompressionDecompression(rsp.Header)
-	if d.decompression {
-		pd.decompression = pd.enable && c.decompression
+	pd, err := deflate.GetConnPermessageDeflate(rsp.Header)
+	if err != nil {
+		return nil, err
+	}
+	if d.Decompression {
+		pd.Decompression = pd.Enable && d.decompression
 	}
 	if d.compression {
-		pd.compression = pd.enable && c.compression
+		pd.Compression = pd.Enable && d.compression
 	}
 
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {

@@ -23,6 +23,7 @@ import (
 
 	"github.com/antlabs/wsutil/bufio2"
 	"github.com/antlabs/wsutil/bytespool"
+	"github.com/antlabs/wsutil/deflate"
 	"github.com/antlabs/wsutil/fixedreader"
 )
 
@@ -91,9 +92,9 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 
 	// 是否打开解压缩
 	// 外层接收压缩, 并且客户端发送扩展过来
-	var pd permessageDeflateConf
+	var pd deflate.PermessageDeflateConf
 	if conf.decompression {
-		pd, err = genConnPermessageDeflate(r.Header)
+		pd, err = deflate.GetConnPermessageDeflate(r.Header)
 		if err != nil {
 			return nil, err
 		}

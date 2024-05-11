@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/antlabs/wsutil/deflate"
 	"github.com/antlabs/wsutil/enum"
 )
 
@@ -35,7 +36,7 @@ type Dialer interface {
 // 另外一种是局部声明一个配置，然后使用WithXXX函数设置配置
 type Config struct {
 	Callback
-	permessageDeflateConf           // 静态配置, 从WithXXX函数中获取
+	deflate.PermessageDeflateConf   // 静态配置, 从WithXXX函数中获取
 	tcpNoDelay                      bool
 	replyPing                       bool              // 开启自动回复
 	decompression                   bool              // 开启解压缩功能
@@ -51,7 +52,7 @@ type Config struct {
 	delayWriteInitBufferSize        int32             // 延迟写入的初始缓冲区大小, 默认值是8k
 	maxDelayWriteDuration           time.Duration     // 最大延迟时间, 默认值是10ms
 	subProtocols                    []string          // 设置支持的子协议
-	maxMessage                      int64             //最大消息大小
+	readMaxMessage                  int64             //最大消息大小
 	dialFunc                        func() (Dialer, error)
 	proxyFunc                       func(*http.Request) (*url.URL, error) //
 }

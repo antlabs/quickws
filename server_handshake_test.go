@@ -84,13 +84,15 @@ func Test_prepareWriteResponse(t *testing.T) {
 		{w: &failWriter{failCount: 2}, wantErr: true, args: args{r: &http.Request{Header: http.Header{}}, cnf: &Config{}}},
 		{w: &failWriter{failCount: 3}, wantErr: true, args: args{r: &http.Request{Header: http.Header{}}, cnf: &Config{}}},
 		{w: &failWriter{failCount: 4}, wantErr: true, args: args{r: &http.Request{Header: http.Header{}}, cnf: &Config{decompression: true}}},
-		{w: &failWriter{failCount: 5}, wantErr: true, args: args{r: &http.Request{Header: http.Header{"Sec-Websocket-Protocol": []string{"token"}}}, cnf: &Config{decompression: true}}},
-		{w: &failWriter{failCount: 6}, wantErr: true, args: args{r: &http.Request{Header: http.Header{"Sec-Websocket-Protocol": []string{"token"}}}, cnf: &Config{decompression: true}}},
+		{w: &failWriter{failCount: 5}, wantErr: true, args: args{r: &http.Request{Header: http.Header{}}, cnf: &Config{decompression: true}}},
+		{w: &failWriter{failCount: 6}, wantErr: true, args: args{r: &http.Request{Header: http.Header{}}, cnf: &Config{decompression: true}}},
+		{w: &failWriter{failCount: 7}, wantErr: true, args: args{r: &http.Request{Header: http.Header{"Sec-Websocket-Protocol": []string{"token"}}}, cnf: &Config{decompression: true}}},
+		{w: &failWriter{failCount: 8}, wantErr: true, args: args{r: &http.Request{Header: http.Header{"Sec-Websocket-Protocol": []string{"token"}}}, cnf: &Config{decompression: true}}},
 	}
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := prepareWriteResponse(tt.args.r, tt.w, tt.args.cnf, deflate.PermessageDeflateConf{}); (err != nil) != tt.wantErr {
-				t.Errorf("index:%d, prepareWriteResponse() error = %v, wantErr %v, %d", i, err, tt.wantErr, tt.w.(*failWriter).count)
+				t.Errorf("index:%d, prepareWriteResponse() error = %v, wantErr %v, count= %d", i, err, tt.wantErr, tt.w.(*failWriter).count)
 				return
 			}
 		})

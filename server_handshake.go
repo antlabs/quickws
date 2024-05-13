@@ -25,9 +25,9 @@ import (
 )
 
 var (
-	ErrNotFoundHijacker             = errors.New("not found Hijacker")
-	bytesHeaderUpgrade              = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ")
-	bytesHeaderExtensions           = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
+	ErrNotFoundHijacker = errors.New("not found Hijacker")
+	bytesHeaderUpgrade  = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ")
+	// bytesHeaderExtensions           = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
 	bytesSecWebSocketExtensionsKey  = []byte("Sec-WebSocket-Extensions: ")
 	bytesCRLF                       = []byte("\r\n")
 	bytesPutSecWebSocketProtocolKey = []byte("Sec-WebSocket-Protocol: ")
@@ -40,10 +40,8 @@ func writeHeaderVal(w io.Writer, val []byte) (err error) {
 		return
 	}
 
-	if _, err = w.Write(bytesCRLF); err != nil {
-		return
-	}
-	return
+	_, err = w.Write(bytesCRLF)
+	return err
 }
 
 func subProtocol(subProtocol string, cnf *Config) string {
@@ -79,19 +77,22 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config, pd deflate.
 	}
 
 	v := secWebSocketAcceptVal(r.Header.Get(strWebSocketKey))
-	// 写入Sec-WebSocket-Accept vla
+	// 写入Sec-WebSocket-Accept
 	if err = writeHeaderVal(w, StringToBytes(v)); err != nil {
 		return err
 	}
 
 	// 给客户端回个信, 表示支持解压缩模式
 	if cnf.decompression {
-		w.Write(bytesSecWebSocketExtensionsKey)
-		w.Write([]byte(genSecWebSocketExtensions(pd)))
-		w.Write(bytesCRLF)
-		// if _, err = w.Write(bytesHeaderExtensions); err != nil {
-		// 	return
-		// }
+		if _, err = w.Write(bytesSecWebSocketExtensionsKey); err != nil {
+			return err
+		}
+		if _, err = w.Write([]byte(genSecWebSocketExtensions(pd))); err != nil {
+			return err
+		}
+		if _, err = w.Write(bytesCRLF); err != nil {
+			return err
+		}
 	}
 
 	v = r.Header.Get(strGetSecWebSocketProtocolKey)

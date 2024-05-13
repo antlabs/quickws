@@ -1107,6 +1107,7 @@ func Test_CommonOption(t *testing.T) {
 
 		defer ts.Close()
 
+		fmt.Printf(">>> WithClientDecompression.%s\n", ts.URL)
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
 		con, err := Dial(url, WithClientBufioParseMode(), WithClientCompression(), WithClientDecompression(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
 			atomic.AddInt32(&run, int32(1))

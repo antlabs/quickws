@@ -28,6 +28,7 @@ var (
 	ErrNotFoundHijacker             = errors.New("not found Hijacker")
 	bytesHeaderUpgrade              = []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ")
 	bytesHeaderExtensions           = []byte("Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\r\n")
+	bytesSecWebSocketExtensionsKey  = []byte("Sec-WebSocket-Extensions: ")
 	bytesCRLF                       = []byte("\r\n")
 	bytesPutSecWebSocketProtocolKey = []byte("Sec-WebSocket-Protocol: ")
 	strGetSecWebSocketProtocolKey   = "Sec-WebSocket-Protocol"
@@ -85,6 +86,7 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config, pd deflate.
 
 	// 给客户端回个信, 表示支持解压缩模式
 	if cnf.decompression {
+		w.Write(bytesSecWebSocketExtensionsKey)
 		w.Write([]byte(genSecWebSocketExtensions(pd)))
 		w.Write(bytesCRLF)
 		// if _, err = w.Write(bytesHeaderExtensions); err != nil {

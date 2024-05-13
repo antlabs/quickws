@@ -64,7 +64,8 @@ func (c *Conn) decode(payload []byte) (decodePayload *[]byte, err error) {
 }
 
 func genSecWebSocketExtensions(pd deflate.PermessageDeflateConf) string {
-	var ext []string
+	ext := make([]string, 1, 5)
+	ext[0] = "permessage-deflate"
 	if !pd.ClientContextTakeover {
 		ext = append(ext, "server_no_context_takeover")
 	}

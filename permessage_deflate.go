@@ -1,6 +1,13 @@
 package quickws
 
-import "github.com/antlabs/wsutil/deflate"
+import (
+	"strconv"
+	"strings"
+
+	"github.com/antlabs/wsutil/deflate"
+)
+
+var strExtensions = "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
 
 func (c *Conn) encoode(payload []byte) (encodePayload *[]byte, err error) {
 
@@ -16,7 +23,7 @@ func (c *Conn) encoode(payload []byte) (encodePayload *[]byte, err error) {
 			} else {
 				bit = c.pd.ServerMaxWindowBits
 			}
-			c.enCtx, err = deflate.NewEncompressContextTakeover(bit)
+			c.enCtx, err = deflate.NewCompressContextTakeover(bit)
 			if err != nil {
 				return nil, err
 			}
@@ -54,4 +61,24 @@ func (c *Conn) decode(payload []byte) (decodePayload *[]byte, err error) {
 
 	// 非上下文按管
 	return deflate.DecompressNoContextTakeover(payload)
+}
+
+func genSecWebSocketExtensions(pd deflate.PermessageDeflateConf) string {
+	var ext []string
+	if !pd.ClientContextTakeover {
+		ext = append(ext, "server_no_context_takeover")
+	}
+
+	if !pd.ServerContextTakeover {
+		ext = append(ext, "client_no_context_takeover")
+	}
+
+	if pd.ClientMaxWindowBits != 0 {
+		ext = append(ext, "client_max_window_bits="+strconv.Itoa(int(pd.ClientMaxWindowBits)))
+	}
+
+	if pd.ServerMaxWindowBits != 0 {
+		ext = append(ext, "server_max_window_bits="+strconv.Itoa(int(pd.ServerMaxWindowBits)))
+	}
+	return strings.Join(ext, "; ")
 }

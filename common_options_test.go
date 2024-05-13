@@ -1100,8 +1100,9 @@ func Test_CommonOption(t *testing.T) {
 				}))
 			if err != nil {
 				t.Error(err)
+				return
 			}
-			c.StartReadLoop()
+			c.ReadLoop()
 		}))
 
 		defer ts.Close()

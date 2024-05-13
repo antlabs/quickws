@@ -20,6 +20,8 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/antlabs/wsutil/deflate"
 )
 
 type failWriter struct {
@@ -87,7 +89,7 @@ func Test_prepareWriteResponse(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := prepareWriteResponse(tt.args.r, tt.w, tt.args.cnf); (err != nil) != tt.wantErr {
+			if err := prepareWriteResponse(tt.args.r, tt.w, tt.args.cnf, deflate.PermessageDeflateConf{}); (err != nil) != tt.wantErr {
 				t.Errorf("index:%d, prepareWriteResponse() error = %v, wantErr %v, %d", i, err, tt.wantErr, tt.w.(*failWriter).count)
 				return
 			}

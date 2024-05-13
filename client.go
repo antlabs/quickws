@@ -34,7 +34,6 @@ import (
 
 var (
 	defaultTimeout = time.Minute * 30
-	strExtensions  = "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
 )
 
 type DialOption struct {
@@ -124,9 +123,9 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	// TODO 第8点
 	// 第9点
 	d.Header.Add("Sec-WebSocket-Version", "13")
-
 	if d.decompression && d.compression {
-		d.Header.Add("Sec-WebSocket-Extensions", strExtensions)
+		// d.Header.Add("Sec-WebSocket-Extensions", genSecWebSocketExtensions(d.Pd))
+		d.Header.Add("Sec-WebSocket-Extensions", genSecWebSocketExtensions(d.PermessageDeflateConf))
 	}
 
 	if len(d.subProtocols) > 0 {

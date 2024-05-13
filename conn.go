@@ -69,7 +69,7 @@ type Conn struct {
 	wmu                  sync.Mutex                         // 写的锁
 	*delayWrite                                             // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
 	deCtx                *deflate.DeCompressContextTakeover // 解压缩上下文
-	enCtx                *deflate.EnCompressContextTakeover // 压缩上下文
+	enCtx                *deflate.CompressContextTakeover   // 压缩上下文
 	closed               int32                              // 0: open, 1: closed
 	client               bool                               // client(true) or server(flase)
 }
@@ -155,7 +155,7 @@ func (c *Conn) ReadLoop() (err error) {
 
 	if c.br != nil {
 		newSize := int(1024 * c.bufioMultipleTimesPayloadSize)
-		if c.br.Size() != newSize {
+		if newSize > 0 && c.br.Size() != newSize {
 			// TODO sync.Pool管理
 			(*bufio2.Reader2)(unsafe.Pointer(c.br)).ResetBuf(make([]byte, newSize))
 		}

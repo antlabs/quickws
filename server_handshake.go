@@ -20,6 +20,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/antlabs/wsutil/deflate"
 )
 
 var (
@@ -68,7 +70,7 @@ func subProtocol(subProtocol string, cnf *Config) string {
 
 // https://datatracker.ietf.org/doc/html/rfc6455#section-4.2.2
 // 第5小点
-func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error) {
+func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config, pd deflate.PermessageDeflateConf) (err error) {
 	// 写入响应头
 	// 写入Sec-WebSocket-Accept key
 	if _, err = w.Write(bytesHeaderUpgrade); err != nil {
@@ -83,9 +85,11 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config) (err error)
 
 	// 给客户端回个信, 表示支持解压缩模式
 	if cnf.decompression {
-		if _, err = w.Write(bytesHeaderExtensions); err != nil {
-			return
-		}
+		w.Write([]byte(genSecWebSocketExtensions(pd)))
+		w.Write(bytesCRLF)
+		// if _, err = w.Write(bytesHeaderExtensions); err != nil {
+		// 	return
+		// }
 	}
 
 	v = r.Header.Get(strGetSecWebSocketProtocolKey)

@@ -107,7 +107,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		bytespool.PutUpgradeRespBytes(buf)
 		tmpWriter = nil
 	}()
-	if err = prepareWriteResponse(r, tmpWriter, conf); err != nil {
+	if err = prepareWriteResponse(r, tmpWriter, conf, pd); err != nil {
 		return
 	}
 

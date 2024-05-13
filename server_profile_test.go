@@ -21,6 +21,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/antlabs/wsutil/deflate"
 	//"os"
 )
 
@@ -104,6 +106,6 @@ func Test_Upgrade(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	prepareWriteResponse(r, &out, &Config{})
+	prepareWriteResponse(r, &out, &Config{}, deflate.PermessageDeflateConf{})
 	fmt.Printf("%s\n %d", out.Bytes(), out.Len())
 }

@@ -70,8 +70,6 @@ func TestConfig_defaultSetting(t *testing.T) {
 				Callback:                        tt.fields.Callback,
 				tcpNoDelay:                      tt.fields.tcpNoDelay,
 				replyPing:                       tt.fields.replyPing,
-				decompression:                   tt.fields.decompression,
-				compression:                     tt.fields.compression,
 				ignorePong:                      tt.fields.ignorePong,
 				disableBufioClearHack:           tt.fields.disableBufioClearHack,
 				utf8Check:                       tt.fields.utf8Check,

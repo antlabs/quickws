@@ -46,15 +46,15 @@ func WithClientDialTimeout(t time.Duration) ClientOption {
 // 4.配置压缩
 func WithClientCompression() ClientOption {
 	return func(o *DialOption) {
-		o.compression = true
+		o.Compression = true
 	}
 }
 
 // 5.配置压缩和解压缩
 func WithClientDecompressAndCompress() ClientOption {
 	return func(o *DialOption) {
-		o.compression = true
-		o.decompression = true
+		o.Compression = true
+		o.Decompression = true
 	}
 }
 

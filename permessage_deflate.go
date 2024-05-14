@@ -11,7 +11,7 @@ var strExtensions = "permessage-deflate; server_no_context_takeover; client_no_c
 
 func (c *Conn) encoode(payload []byte) (encodePayload *[]byte, err error) {
 
-	ct := (c.pd.ClientContextTakeover && c.client || !c.client && c.pd.ServerContextTakeover) && c.compression
+	ct := (c.pd.ClientContextTakeover && c.client || !c.client && c.pd.ServerContextTakeover) && c.Compression
 	// 上下文接管
 	if ct {
 		// 这里的读取是单go程的。所以不用加锁

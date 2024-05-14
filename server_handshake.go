@@ -83,7 +83,7 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config, pd deflate.
 	}
 
 	// 给客户端回个信, 表示支持解压缩模式
-	if cnf.decompression {
+	if cnf.Decompression {
 		if _, err = w.Write(bytesSecWebSocketExtensionsKey); err != nil {
 			return err
 		}

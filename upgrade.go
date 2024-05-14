@@ -93,7 +93,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	// 是否打开解压缩
 	// 外层接收压缩, 并且客户端发送扩展过来
 	var pd deflate.PermessageDeflateConf
-	if conf.decompression {
+	if conf.Decompression {
 		pd, err = deflate.GetConnPermessageDeflate(r.Header)
 		if err != nil {
 			return nil, err
@@ -124,6 +124,9 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 
 	conn.SetDeadline(time.Time{})
 	wsCon := newConn(conn, false, conf, fr, br, bp)
+	pd.Decompression = pd.Enable && wsCon.Decompression
+	pd.Compression = pd.Enable && wsCon.Compression
+
 	wsCon.pd = pd
 	return wsCon, nil
 }

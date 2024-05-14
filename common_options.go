@@ -184,13 +184,13 @@ func WithClientBufioParseMode() ClientOption {
 // 10 配置解压缩
 func WithClientDecompression() ClientOption {
 	return func(o *DialOption) {
-		o.decompression = true
+		o.Decompression = true
 	}
 }
 
 func WithServerDecompression() ServerOption {
 	return func(o *ConnOption) {
-		o.decompression = true
+		o.Decompression = true
 	}
 }
 

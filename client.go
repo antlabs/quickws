@@ -123,7 +123,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	// TODO 第8点
 	// 第9点
 	d.Header.Add("Sec-WebSocket-Version", "13")
-	if d.decompression && d.compression {
+	if d.Decompression && d.Compression {
 		// d.Header.Add("Sec-WebSocket-Extensions", genSecWebSocketExtensions(d.Pd))
 		d.Header.Add("Sec-WebSocket-Extensions", genSecWebSocketExtensions(d.PermessageDeflateConf))
 	}
@@ -263,10 +263,10 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 		return nil, err
 	}
 	if d.Decompression {
-		pd.Decompression = pd.Enable && d.decompression
+		pd.Decompression = pd.Enable && d.Decompression
 	}
-	if d.compression {
-		pd.Compression = pd.Enable && d.compression
+	if d.Compression {
+		pd.Compression = pd.Enable && d.Compression
 	}
 
 	if err = d.validateRsp(rsp, secWebSocket); err != nil {

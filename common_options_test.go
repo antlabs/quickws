@@ -1514,7 +1514,7 @@ func Test_CommonOption(t *testing.T) {
 				t.Error(err)
 			}
 
-			if !c.compression {
+			if !c.Compression {
 				t.Error("compression fail")
 			}
 
@@ -1557,7 +1557,7 @@ func Test_CommonOption(t *testing.T) {
 		}
 		defer con.Close()
 
-		if !con.compression {
+		if !con.Compression {
 			t.Error("not compression:method fail")
 		}
 		err = con.WriteMessage(Binary, []byte("hello"))

@@ -39,8 +39,6 @@ type Config struct {
 	deflate.PermessageDeflateConf   // 静态配置, 从WithXXX函数中获取
 	tcpNoDelay                      bool
 	replyPing                       bool              // 开启自动回复
-	decompression                   bool              // 开启解压缩功能
-	compression                     bool              // 开启压缩功能
 	ignorePong                      bool              // 忽略pong消息
 	disableBufioClearHack           bool              // 关闭bufio的clear hack优化
 	utf8Check                       func([]byte) bool // utf8检查

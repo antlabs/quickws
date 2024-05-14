@@ -227,7 +227,7 @@ func (c *Conn) readMessage() (err error) {
 	rsv1 := f.GetRsv1()
 	// 检查Rsv1 rsv2 Rfd, errsv3
 	if rsv1 && c.failRsv1(op) || f.GetRsv2() || f.GetRsv3() {
-		err = fmt.Errorf("%w:Rsv1(%t) Rsv2(%t) rsv2(%t) compression:%t", ErrRsv123, rsv1, f.GetRsv2(), f.GetRsv3(), c.compression)
+		err = fmt.Errorf("%w:Rsv1(%t) Rsv2(%t) rsv2(%t) compression:%t", ErrRsv123, rsv1, f.GetRsv2(), f.GetRsv3(), c.Compression)
 		return c.writeErrAndOnClose(ProtocolError, err)
 	}
 
@@ -385,7 +385,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 			return err
 		}
 
-		defer bytespool.PutBytes(&writeBuf)
+		defer bytespool.PutBytes(writeBufPtr)
 		writeBuf = *writeBufPtr
 	}
 
@@ -447,7 +447,7 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 		}
 	}
 
-	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	rsv1 := c.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
 		writeBufPtr, err := c.encoode(writeBuf)
 		if err != nil {
@@ -542,7 +542,7 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 
 	// 初始化对应的资源
 	c.initDelayWrite()
-	rsv1 := c.compression && (op == opcode.Text || op == opcode.Binary)
+	rsv1 := c.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
 		writeBufPtr, err := c.encoode(writeBuf)
 		if err != nil {

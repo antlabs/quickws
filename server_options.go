@@ -23,7 +23,7 @@ type ConnOption struct {
 // 1.配置压缩和解压缩
 func WithServerDecompressAndCompress() ServerOption {
 	return func(o *ConnOption) {
-		o.compression = true
-		o.decompression = true
+		o.Compression = true
+		o.Decompression = true
 	}
 }

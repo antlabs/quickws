@@ -1,6 +1,3 @@
-//go:build quickwstest
-// +build quickwstest
-
 package main
 
 import (
@@ -59,7 +56,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 		quickws.WithServerIgnorePong(),
 		quickws.WithServerCallback(&echoHandler{}),
 		quickws.WithServerEnableUTF8Check(),
-		quickws.WithServerReadTimeout(5*time.Second),
+		// quickws.WithServerReadTimeout(5*time.Second),
 	)
 	if err != nil {
 		fmt.Println("Upgrade fail:", err)
@@ -86,20 +83,7 @@ func echo2(w http.ResponseWriter, r *http.Request) {
 	c.ReadLoop()
 }
 
-func main() {
-	mux := &http.ServeMux{}
-	mux.HandleFunc("/autobahn", echo)
-	mux.HandleFunc("/autobahn-timeout", echo)
-
-	rawTCP, err := net.Listen("tcp", ":9001")
-	if err != nil {
-		fmt.Println("Listen fail:", err)
-		return
-	}
-
-	go func() {
-		log.Println("non-tls server exit:", http.Serve(rawTCP, mux))
-	}()
+func startTLSServer(mux *http.ServeMux) {
 
 	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
 	if err != nil {
@@ -114,4 +98,24 @@ func main() {
 		panic(err)
 	}
 	log.Println("tls server exit:", http.Serve(lnTLS, mux))
+}
+
+func startServer(mux *http.ServeMux) {
+
+	rawTCP, err := net.Listen("tcp", ":9001")
+	if err != nil {
+		fmt.Println("Listen fail:", err)
+		return
+	}
+
+	log.Println("non-tls server exit:", http.Serve(rawTCP, mux))
+}
+
+func main() {
+	mux := &http.ServeMux{}
+	mux.HandleFunc("/autobahn", echo)
+	mux.HandleFunc("/autobahn-timeout", echo)
+
+	startServer(mux)
+	startTLSServer(mux)
 }

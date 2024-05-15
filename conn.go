@@ -62,7 +62,7 @@ type Conn struct {
 	pd                   deflate.PermessageDeflateConf      // permessageDeflate局部配置
 	once                 sync.Once                          // 清理资源的once
 	readHeadArray        [enum.MaxFrameHeaderSize]byte      // 读取数据的头部
-	fragmentFramePayload []byte                             // 存放分段帧的缓冲区
+	fragmentFramePayload *[]byte                            // 存放分段帧的缓冲区
 	bufioPayload         *[]byte                            // bufio模式下的缓冲区, 默认为nil
 	fragmentFrameHeader  *frame.FrameHeader                 // 存放分段帧的头部
 	initLazyResource     sync.Mutex                         // 初始化资源的锁
@@ -234,7 +234,7 @@ func (c *Conn) readMessage() (err error) {
 	fin := f.GetFin()
 	if c.fragmentFrameHeader != nil && !f.Opcode.IsControl() {
 		if f.Opcode == 0 {
-			c.fragmentFramePayload = append(c.fragmentFramePayload, *f.Payload...)
+			*c.fragmentFramePayload = append(*c.fragmentFramePayload, *f.Payload...)
 
 			// 分段的在这返回
 			if fin {
@@ -244,17 +244,20 @@ func (c *Conn) readMessage() (err error) {
 					if err != nil {
 						return err
 					}
-					c.fragmentFramePayload = *tempBuf
+					// 释放未解压缩的buffer到池里面
+					bytespool.PutBytes(c.fragmentFramePayload)
+					c.fragmentFramePayload = tempBuf
 				}
 				// 这里的check按道理应该放到f.Fin前面， 会更符合rfc的标准, 前提是c.utf8Check修改成流式解析
 				// TODO c.utf8Check 修改成流式解析
-				if c.fragmentFrameHeader.Opcode == opcode.Text && !c.utf8Check(c.fragmentFramePayload) {
+				if c.fragmentFrameHeader.Opcode == opcode.Text && !c.utf8Check(*c.fragmentFramePayload) {
 					c.Callback.OnClose(c, ErrTextNotUTF8)
 					return ErrTextNotUTF8
 				}
 
-				c.Callback.OnMessage(c, c.fragmentFrameHeader.Opcode, c.fragmentFramePayload)
-				c.fragmentFramePayload = c.fragmentFramePayload[0:0]
+				c.Callback.OnMessage(c, c.fragmentFrameHeader.Opcode, *c.fragmentFramePayload)
+				bytespool.PutBytes(c.fragmentFramePayload)
+				c.fragmentFramePayload = nil
 				c.fragmentFrameHeader = nil
 			}
 			return nil
@@ -268,10 +271,14 @@ func (c *Conn) readMessage() (err error) {
 		if !fin {
 			prevFrame := f.FrameHeader
 			// 第一次分段
-			if len(c.fragmentFramePayload) == 0 {
-				c.fragmentFramePayload = append(c.fragmentFramePayload, *f.Payload...)
-				f.Payload = nil
+			if c.fragmentFramePayload == nil {
+				c.fragmentFramePayload = bytespool.GetBytes(len(*f.Payload) * 2)
+				*c.fragmentFramePayload = (*c.fragmentFramePayload)[0:0]
 			}
+
+			// TODO 这里的小片内存可能已经丢失
+			*c.fragmentFramePayload = append(*c.fragmentFramePayload, *f.Payload...)
+			f.Payload = nil
 
 			// 让fragmentFrame的Payload指向readBuf, readBuf 原引用直接丢弃
 			c.fragmentFrameHeader = &prevFrame
@@ -281,7 +288,7 @@ func (c *Conn) readMessage() (err error) {
 		decompression := false
 		if rsv1 && c.pd.Decompression {
 			// 不分段的解压缩
-			f.Payload, err = c.decode(*f.Payload)
+			f.Payload, err = c.decode(f.Payload)
 			if err != nil {
 				return err
 			}
@@ -380,7 +387,7 @@ func (c *Conn) WriteMessage(op Opcode, writeBuf []byte) (err error) {
 
 	rsv1 := c.pd.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		writeBufPtr, err := c.encoode(writeBuf)
+		writeBufPtr, err := c.encoode(&writeBuf)
 		if err != nil {
 			return err
 		}
@@ -449,7 +456,7 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 
 	rsv1 := c.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		writeBufPtr, err := c.encoode(writeBuf)
+		writeBufPtr, err := c.encoode(&writeBuf)
 		if err != nil {
 			return err
 		}
@@ -544,7 +551,7 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	c.initDelayWrite()
 	rsv1 := c.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
-		writeBufPtr, err := c.encoode(writeBuf)
+		writeBufPtr, err := c.encoode(&writeBuf)
 		if err != nil {
 			return err
 		}

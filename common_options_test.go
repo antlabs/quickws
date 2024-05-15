@@ -1830,10 +1830,9 @@ func Test_CommonOption(t *testing.T) {
 			t.Error(err)
 		}
 		defer con.Close()
-		// 这里必须要报错
 		err = con.WriteMessage(Text, []byte("hello"))
 		if err != nil {
-			t.Error("not error")
+			t.Errorf("not error:%v\n", err)
 		}
 		con.StartReadLoop()
 		select {

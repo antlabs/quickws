@@ -14,5 +14,8 @@ autobahn-client-linux-amd64
 autobahn-server-darwin-arm64
 autobahn-server-darwin-arm64-arena
 autobahn-server-linux-amd64
-cpu.profile
-mem.profile
+/cpu.profile
+/mem.profile
+/autobahn/autobahn-server
+/autobahn-server
+/.vscode

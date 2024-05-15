@@ -107,6 +107,10 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		bytespool.PutUpgradeRespBytes(buf)
 		tmpWriter = nil
 	}()
+	pd.Decompression = pd.Enable && conf.Decompression
+	pd.Compression = pd.Enable && conf.Compression
+	pd.ServerContextTakeover = pd.Enable && conf.ServerContextTakeover
+	pd.ClientContextTakeover = pd.Enable && conf.ClientContextTakeover
 	if err = prepareWriteResponse(r, tmpWriter, conf, pd); err != nil {
 		return
 	}
@@ -124,8 +128,6 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 
 	conn.SetDeadline(time.Time{})
 	wsCon := newConn(conn, false, conf, fr, br, bp)
-	pd.Decompression = pd.Enable && wsCon.Decompression
-	pd.Compression = pd.Enable && wsCon.Compression
 
 	wsCon.pd = pd
 	return wsCon, nil

@@ -9,7 +9,7 @@ import (
 
 var strExtensions = "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
 
-func (c *Conn) encoode(payload []byte) (encodePayload *[]byte, err error) {
+func (c *Conn) encoode(payload *[]byte) (encodePayload *[]byte, err error) {
 
 	ct := (c.pd.ClientContextTakeover && c.client || !c.client && c.pd.ServerContextTakeover) && c.Compression
 	// 上下文接管
@@ -37,7 +37,7 @@ func (c *Conn) encoode(payload []byte) (encodePayload *[]byte, err error) {
 }
 
 // 解压缩入口函数
-func (c *Conn) decode(payload []byte) (decodePayload *[]byte, err error) {
+func (c *Conn) decode(payload *[]byte) (decodePayload *[]byte, err error) {
 	ct := (c.pd.ClientContextTakeover && c.client || !c.client && c.pd.ServerContextTakeover) && c.Decompression
 	// 上下文接管
 	if ct {

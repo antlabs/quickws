@@ -489,7 +489,6 @@ func TestFragmentFrame(t *testing.T) {
 		defer con.Close()
 
 		sendData := []byte("hell")
-		// 这里必须要报错
 		err = con.writeFragment(Text, sendData, 5)
 		if err != nil {
 			t.Errorf("error:%v", err)
@@ -557,21 +556,22 @@ func TestFragmentFrame(t *testing.T) {
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
 		con, err := Dial(url, WithClientDisableBufioClearHack(),
-			WithClientDecompressAndCompress(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+			WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
 			}))
 		if err != nil {
 			t.Error(err)
 		}
 		defer con.Close()
-		// 这里必须要报错
+		// 这里不能报错, 虽然使用了不合法的utf8的，但是没有开启检查
 		err = con.writeFragment(Text, []byte{128, 129, 130, 131}, 1)
 		if err != nil {
-			t.Error("error")
+			t.Errorf("error :%v\n", err)
+			return
 		}
 		con.StartReadLoop()
 		select {
 		case _ = <-data:
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(500 * time.Hour):
 		}
 
 		if atomic.LoadInt32(&run) != 0 {

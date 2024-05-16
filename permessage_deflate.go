@@ -32,8 +32,14 @@ func (c *Conn) encoode(payload *[]byte) (encodePayload *[]byte, err error) {
 		return c.enCtx.Compress(payload)
 	}
 
+	bit := uint8(0)
+	if c.client {
+		bit = c.pd.ClientMaxWindowBits
+	} else {
+		bit = c.pd.ServerMaxWindowBits
+	}
 	// 非上下文按管
-	return deflate.CompressNoContextTakeover(payload, deflate.DefaultCompressionLevel)
+	return deflate.CompressNoContextTakeover(payload, deflate.DefaultCompressionLevel, bit)
 }
 
 // 解压缩入口函数
@@ -41,7 +47,6 @@ func (c *Conn) decode(payload *[]byte) (decodePayload *[]byte, err error) {
 	ct := (c.pd.ClientContextTakeover && c.client || !c.client && c.pd.ServerContextTakeover) && c.Decompression
 	// 上下文接管
 	if ct {
-		// 这里的读取是单go程的。所以不用加锁
 		if c.deCtx == nil {
 
 			bit := uint8(0)
@@ -67,11 +72,11 @@ func genSecWebSocketExtensions(pd deflate.PermessageDeflateConf) string {
 	ext := make([]string, 1, 5)
 	ext[0] = "permessage-deflate"
 	if !pd.ClientContextTakeover {
-		ext = append(ext, "server_no_context_takeover")
+		ext = append(ext, "client_no_context_takeover")
 	}
 
 	if !pd.ServerContextTakeover {
-		ext = append(ext, "client_no_context_takeover")
+		ext = append(ext, "server_no_context_takeover")
 	}
 
 	if pd.ClientMaxWindowBits != 0 {

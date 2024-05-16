@@ -65,7 +65,6 @@ type Conn struct {
 	fragmentFramePayload *[]byte                            // 存放分段帧的缓冲区
 	bufioPayload         *[]byte                            // bufio模式下的缓冲区, 默认为nil
 	fragmentFrameHeader  *frame.FrameHeader                 // 存放分段帧的头部
-	initLazyResource     sync.Mutex                         // 初始化资源的锁
 	wmu                  sync.Mutex                         // 写的锁
 	*delayWrite                                             // 只有在需要的时候才初始化, 修改为指针是为了在海量连接的时候减少内存占用
 	deCtx                *deflate.DeCompressContextTakeover // 解压缩上下文
@@ -532,11 +531,11 @@ func (c *Conn) writerDelayBufInner() (err error) {
 
 func (c *Conn) initDelayWrite() {
 	if c.delayWrite == nil {
-		c.initLazyResource.Lock()
+		c.wmu.Lock()
 		if c.delayWrite == nil {
 			c.delayWrite = &delayWrite{}
 		}
-		c.initLazyResource.Unlock()
+		c.wmu.Unlock()
 	}
 }
 func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {

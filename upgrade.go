@@ -57,6 +57,13 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *C
 	return upgradeInner(w, r, &conf.Config)
 }
 
+func resetPermessageDeflate(pd *deflate.PermessageDeflateConf, conf *Config) {
+	pd.Decompression = pd.Enable && conf.Decompression
+	pd.Compression = pd.Enable && conf.Compression
+	pd.ServerContextTakeover = pd.Enable && pd.ServerContextTakeover && conf.ServerContextTakeover
+	pd.ClientContextTakeover = pd.Enable && pd.ClientContextTakeover && conf.ClientContextTakeover
+}
+
 func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn, err error) {
 	if ecode, err := checkRequest(r); err != nil {
 		http.Error(w, err.Error(), ecode)
@@ -107,10 +114,8 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		bytespool.PutUpgradeRespBytes(buf)
 		tmpWriter = nil
 	}()
-	pd.Decompression = pd.Enable && conf.Decompression
-	pd.Compression = pd.Enable && conf.Compression
-	pd.ServerContextTakeover = pd.Enable && conf.ServerContextTakeover
-	pd.ClientContextTakeover = pd.Enable && conf.ClientContextTakeover
+
+	resetPermessageDeflate(&pd, conf)
 	if err = prepareWriteResponse(r, tmpWriter, conf, pd); err != nil {
 		return
 	}

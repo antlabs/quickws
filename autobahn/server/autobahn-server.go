@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/antlabs/quickws"
@@ -48,8 +49,8 @@ func (e *echoHandler) OnClose(c *quickws.Conn, err error) {
 	fmt.Printf("OnClose:%p, %v\n", c, err)
 }
 
-// echo测试服务
-func echo(w http.ResponseWriter, r *http.Request) {
+// 1.测试不接管上下文，只解压
+func echoNoContextDecompression(w http.ResponseWriter, r *http.Request) {
 	c, err := quickws.Upgrade(w, r,
 		quickws.WithServerReplyPing(),
 		quickws.WithServerDecompression(),
@@ -66,7 +67,59 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	c.ReadLoop()
 }
 
-func echo2(w http.ResponseWriter, r *http.Request) {
+// 2.测试不接管上下文，压缩和解压
+func echoNoContextDecompressionAndCompression(w http.ResponseWriter, r *http.Request) {
+	c, err := quickws.Upgrade(w, r,
+		quickws.WithServerReplyPing(),
+		quickws.WithServerDecompressAndCompress(),
+		quickws.WithServerIgnorePong(),
+		quickws.WithServerCallback(&echoHandler{}),
+		quickws.WithServerEnableUTF8Check(),
+	)
+	if err != nil {
+		fmt.Println("Upgrade fail:", err)
+		return
+	}
+
+	c.ReadLoop()
+}
+
+// 3.测试接管上下文，解压
+func echoContextTakeoverDecompression(w http.ResponseWriter, r *http.Request) {
+	c, err := quickws.Upgrade(w, r,
+		quickws.WithServerReplyPing(),
+		quickws.WithServerDecompression(),
+		quickws.WithServerIgnorePong(),
+		quickws.WithServerContextTakeover(),
+		quickws.WithServerCallback(&echoHandler{}),
+		quickws.WithServerEnableUTF8Check(),
+	)
+	if err != nil {
+		fmt.Println("Upgrade fail:", err)
+		return
+	}
+
+	c.ReadLoop()
+}
+
+// 4.测试接管上下文，压缩/解压缩
+func echoContextTakeoverDecompressionAndCompression(w http.ResponseWriter, r *http.Request) {
+	c, err := quickws.Upgrade(w, r,
+		quickws.WithServerReplyPing(),
+		quickws.WithServerDecompressAndCompress(),
+		quickws.WithServerIgnorePong(),
+		quickws.WithServerContextTakeover(),
+		quickws.WithServerCallback(&echoHandler{}),
+		quickws.WithServerEnableUTF8Check(),
+	)
+	if err != nil {
+		fmt.Println("Upgrade fail:", err)
+		return
+	}
+
+	c.ReadLoop()
+}
+func echoReadTime(w http.ResponseWriter, r *http.Request) {
 	c, err := quickws.Upgrade(w, r,
 		quickws.WithServerReplyPing(),
 		quickws.WithServerDecompression(),
@@ -113,9 +166,24 @@ func startServer(mux *http.ServeMux) {
 
 func main() {
 	mux := &http.ServeMux{}
-	mux.HandleFunc("/autobahn", echo)
-	mux.HandleFunc("/autobahn-timeout", echo)
+	mux.HandleFunc("/nocontext-decompression", echoNoContextDecompression)
+	mux.HandleFunc("/nocontext-decompression-and-compression", echoNoContextDecompressionAndCompression)
+	mux.HandleFunc("/timeout", echoReadTime)
+	mux.HandleFunc("/context-takeover-decompression", echoContextTakeoverDecompression)
+	mux.HandleFunc("/context-takeover-decompression-and-compression", echoContextTakeoverDecompressionAndCompression)
 
-	startServer(mux)
-	startTLSServer(mux)
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	defer wg.Wait()
+
+	go func() {
+		defer wg.Done()
+		startServer(mux)
+	}()
+
+	go func() {
+		startTLSServer(mux)
+	}()
+
 }

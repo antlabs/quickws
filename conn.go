@@ -272,12 +272,15 @@ func (c *Conn) readMessage() (err error) {
 			prevFrame := f.FrameHeader
 			// 第一次分段
 			if c.fragmentFramePayload == nil {
-				c.fragmentFramePayload = bytespool.GetBytes(len(*f.Payload) * 2)
+				c.fragmentFramePayload = bytespool.GetBytes(len(*f.Payload)*2 + enum.MaxFrameHeaderSize)
 				*c.fragmentFramePayload = (*c.fragmentFramePayload)[0:0]
 			}
 
-			// TODO 这里的小片内存可能已经丢失
-			*c.fragmentFramePayload = append(*c.fragmentFramePayload, *f.Payload...)
+			newPayload := append(*c.fragmentFramePayload, *f.Payload...)
+			if unsafe.SliceData(newPayload) != unsafe.SliceData(*c.fragmentFramePayload) {
+				bytespool.PutBytes(c.fragmentFramePayload)
+			}
+			c.fragmentFramePayload = &newPayload
 			f.Payload = nil
 
 			// 让fragmentFrame的Payload指向readBuf, readBuf 原引用直接丢弃

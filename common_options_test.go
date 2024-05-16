@@ -1439,7 +1439,7 @@ func Test_CommonOption(t *testing.T) {
 		case <-time.After(1000 * time.Millisecond):
 		}
 		if atomic.LoadInt32(&run) != 3 {
-			t.Errorf("not run server:method fail: run:%d,need:3\n", run)
+			t.Errorf("not run server:method fail: run:%d,need:3\n", atomic.LoadInt32(&run))
 		}
 	})
 

@@ -9,37 +9,31 @@ import (
 
 var strExtensions = "permessage-deflate; server_no_context_takeover; client_no_context_takeover"
 
+// 压缩的入口函数
 func (c *Conn) encoode(payload *[]byte) (encodePayload *[]byte, err error) {
 
 	ct := (c.pd.ClientContextTakeover && c.client || !c.client && c.pd.ServerContextTakeover) && c.Compression
 	// 上下文接管
-	if ct {
-		// 这里的读取是单go程的。所以不用加锁
-		if c.enCtx == nil {
-
-			bit := uint8(0)
-			if c.client {
-				bit = c.pd.ClientMaxWindowBits
-			} else {
-				bit = c.pd.ServerMaxWindowBits
-			}
-			c.enCtx, err = deflate.NewCompressContextTakeover(bit)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return c.enCtx.Compress(payload)
-	}
-
 	bit := uint8(0)
 	if c.client {
 		bit = c.pd.ClientMaxWindowBits
 	} else {
 		bit = c.pd.ServerMaxWindowBits
 	}
-	// 非上下文按管
-	return deflate.CompressNoContextTakeover(payload, deflate.DefaultCompressionLevel, bit)
+	if ct {
+		// 这里的读取是单go程的。所以不用加锁
+		if c.enCtx == nil {
+
+			c.enCtx, err = deflate.NewCompressContextTakeover(bit)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	}
+	// 处理上下文接管和非上下文接管两种情况
+	// bit 为啥放在参数里面传递, 因为非上下文接管的时候，也需要正确处理bit
+	return c.enCtx.Compress(payload, bit)
 }
 
 // 解压缩入口函数
@@ -61,11 +55,11 @@ func (c *Conn) decode(payload *[]byte) (decodePayload *[]byte, err error) {
 			}
 		}
 
-		return c.deCtx.Decompress(payload, c.readMaxMessage)
 	}
 
-	// 非上下文按管
-	return deflate.DecompressNoContextTakeover(payload)
+	// 上下文接管, deCtx是nil
+	// 非上下文接管, deCtx是非nil
+	return c.deCtx.Decompress(payload, c.readMaxMessage)
 }
 
 func genSecWebSocketExtensions(pd deflate.PermessageDeflateConf) string {

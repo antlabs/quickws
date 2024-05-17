@@ -166,9 +166,9 @@ func startServer(mux *http.ServeMux) {
 
 func main() {
 	mux := &http.ServeMux{}
-	mux.HandleFunc("/nocontext-decompression", echoNoContextDecompression)
-	mux.HandleFunc("/nocontext-decompression-and-compression", echoNoContextDecompressionAndCompression)
 	mux.HandleFunc("/timeout", echoReadTime)
+	mux.HandleFunc("/no-context-takeover-decompression", echoNoContextDecompression)
+	mux.HandleFunc("/no-context-takeover-decompression-and-compression", echoNoContextDecompressionAndCompression)
 	mux.HandleFunc("/context-takeover-decompression", echoContextTakeoverDecompression)
 	mux.HandleFunc("/context-takeover-decompression-and-compression", echoContextTakeoverDecompressionAndCompression)
 

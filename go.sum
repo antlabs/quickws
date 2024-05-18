@@ -1,5 +1,5 @@
-github.com/antlabs/wsutil v0.1.8-0.20240517174351-17020513da79 h1:78M4B0XatZccJ/jIVSGS7I4M1ckyaDuamvZrHQhW/Ao=
-github.com/antlabs/wsutil v0.1.8-0.20240517174351-17020513da79/go.mod h1:Pk7xYOw3o5iEB6ukiOu+2uJMLYeMVVjJLazFD3okI2A=
+github.com/antlabs/wsutil v0.1.8 h1:JDFtcR6LdkXJqAFYG5i/3KF3oVoS484IHbaeMKk7f2Y=
+github.com/antlabs/wsutil v0.1.8/go.mod h1:Pk7xYOw3o5iEB6ukiOu+2uJMLYeMVVjJLazFD3okI2A=
 github.com/klauspost/compress v1.17.8 h1:YcnTYrq7MikUT7k0Yb5eceMmALQPYBW/Xltxn0NAMnU=
 github.com/klauspost/compress v1.17.8/go.mod h1:Di0epgTjJY877eYKx5yC51cX2A2Vl2ibi7bDH9ttBbw=
 golang.org/x/net v0.23.0 h1:7EYJ93RZ9vYSZAIb2x3lnuvqO5zneoD6IvWjuhfxjTs=

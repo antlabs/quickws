@@ -87,7 +87,7 @@ func prepareWriteResponse(r *http.Request, w io.Writer, cnf *Config, pd deflate.
 		if _, err = w.Write(bytesSecWebSocketExtensionsKey); err != nil {
 			return err
 		}
-		if _, err = w.Write([]byte(genSecWebSocketExtensions(pd))); err != nil {
+		if _, err = w.Write([]byte(deflate.GenSecWebSocketExtensions(pd))); err != nil {
 			return err
 		}
 		if _, err = w.Write(bytesCRLF); err != nil {

@@ -125,7 +125,7 @@ func (d *DialOption) handshake() (*http.Request, string, error) {
 	d.Header.Add("Sec-WebSocket-Version", "13")
 	if d.Decompression && d.Compression {
 		// d.Header.Add("Sec-WebSocket-Extensions", genSecWebSocketExtensions(d.Pd))
-		d.Header.Add("Sec-WebSocket-Extensions", genSecWebSocketExtensions(d.PermessageDeflateConf))
+		d.Header.Add("Sec-WebSocket-Extensions", deflate.GenSecWebSocketExtensions(d.PermessageDeflateConf))
 	}
 
 	if len(d.subProtocols) > 0 {

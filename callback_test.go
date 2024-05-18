@@ -61,6 +61,9 @@ func Test_DefaultCallback(t *testing.T) {
 			t.Error(err)
 			return
 		}
+		if con.client != true {
+			t.Error("con.client must be true")
+		}
 		defer con.Close()
 
 		con.WriteMessage(Binary, []byte("hello"))

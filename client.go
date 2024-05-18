@@ -289,6 +289,8 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 			if len(b) > 1024+enum.MaxFrameHeaderSize {
 				bytespool.PutBytes(buf)
 				buf = bytespool.GetBytes(len(b) + enum.MaxFrameHeaderSize)
+
+				fr.Reset(buf)
 			}
 
 			copy(*buf, b)
@@ -299,7 +301,7 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	}
 	// fmt.Println(brw.Reader.Buffered())
 	conn.SetDeadline(time.Time{})
-	wsCon := newConn(conn, false, &d.Config, fr, br, bp)
+	wsCon := newConn(conn, true /* client is true*/, &d.Config, fr, br, bp)
 	wsCon.pd = pd
 	return wsCon, nil
 }

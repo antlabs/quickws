@@ -19,3 +19,4 @@ autobahn-server-linux-amd64
 /autobahn/autobahn-server
 /autobahn-server
 /.vscode
+/autobahn/report2/

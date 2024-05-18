@@ -1,0 +1,1 @@
+docker run -it --rm --network host -v ${PWD}/config:/config -v ${PWD}/report2:/report2 crossbario/autobahn-testsuite wstest -m fuzzingserver -s /config/fuzzingserver.json

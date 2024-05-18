@@ -333,8 +333,8 @@ func WithServerSubprotocols(subprotocols []string) ServerOption {
 }
 
 // 21.1 设置客户端支持上下文接管, 默认不支持上下文接管
-func WithClientContextTakeover() ServerOption {
-	return func(o *ConnOption) {
+func WithClientContextTakeover() ClientOption {
+	return func(o *DialOption) {
 		o.ClientContextTakeover = true
 	}
 }

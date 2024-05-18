@@ -11,8 +11,8 @@ import (
 // https://github.com/snapview/tokio-tungstenite/blob/master/examples/autobahn-client.rs
 
 const (
-	host = "ws://192.168.128.44:9003"
-	// host  = "ws://127.0.0.1:9003"
+	// host = "ws://192.168.128.44:9003"
+	host  = "ws://127.0.0.1:9003"
 	agent = "quickws"
 )
 
@@ -21,13 +21,16 @@ type echoHandler struct {
 }
 
 func (e *echoHandler) OnOpen(c *quickws.Conn) {
-	fmt.Println("OnOpen:", c)
+	fmt.Printf("OnOpen::%p\n", c)
 }
 
 func (e *echoHandler) OnMessage(c *quickws.Conn, op quickws.Opcode, msg []byte) {
-	// fmt.Println("OnMessage:", c, op, msg)
+	fmt.Printf("OnMessage: opcode:%s, msg.size:%d\n", op, len(msg))
 	if op == quickws.Text || op == quickws.Binary {
 		// os.WriteFile("./debug.dat", msg, 0o644)
+		// if err := c.WriteMessage(op, msg); err != nil {
+		// 	fmt.Println("write fail:", err)
+		// }
 		if err := c.WriteTimeout(op, msg, 1*time.Minute); err != nil {
 			fmt.Println("write fail:", err)
 		}
@@ -62,28 +65,14 @@ func getCaseCount() int {
 	return count
 }
 
-// echo测试服务
-// func echo(w http.ResponseWriter, r *http.Request) {
-// 	c, err := quickws.Upgrade(w, r, quickws.WithServerReplyPing(),
-// 		quickws.WithServerDecompression(),
-// 		quickws.WithServerIgnorePong(),
-// 		quickws.WithServerCallback(&echoHandler{}),
-// 		quickws.WithServerReadTimeout(5*time.Second),
-// 	)
-// 	if err != nil {
-// 		fmt.Println("Upgrade fail:", err)
-// 		return
-// 	}
-
-// 	go c.ReadLoop()
-// }
-
 func runTest(caseNo int) {
 	done := make(chan struct{})
 	c, err := quickws.Dial(fmt.Sprintf("%s/runCase?case=%d&agent=%s", host, caseNo, agent),
 		quickws.WithClientReplyPing(),
-		// quickws.WithClientCompression(),
+		quickws.WithClientEnableUTF8Check(),
 		quickws.WithClientDecompressAndCompress(),
+		quickws.WithClientContextTakeover(),
+		quickws.WithClientMaxWindowsBits(10),
 		quickws.WithClientCallback(&echoHandler{done: done}),
 	)
 	if err != nil {
@@ -105,6 +94,8 @@ func updateReports() {
 	c.Close()
 }
 
+// 1.先通过接口获取case的总个数
+// 2.运行测试客户端client
 func main() {
 	total := getCaseCount()
 	fmt.Println("total case:", total)

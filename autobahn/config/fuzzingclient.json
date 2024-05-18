@@ -2,22 +2,29 @@
         "outdir": "./report/",
         "servers": [
                 {
-                        "agent": "non-tls",
-                        "url": "ws://localhost:9001/autobahn",
+                        "agent": "no-context-takeover-decompression-and-compression-no-tls",
+                        "url": "ws://localhost:9001/no-context-takeover-decompression-and-compression",
                         "options": {
                                 "version": 18
                         }
                 },
                 {
-                        "agent": "non-tls-timeout",
-                        "url": "ws://localhost:9001/autobahn-timeout",
+                        "agent": "no-context-takeover-decompression-no-tls",
+                        "url": "ws://localhost:9001/no-context-takeover-decompression",
                         "options": {
                                 "version": 18
                         }
                 },
                 {
-                        "agent": "tls",
-                        "url": "wss://localhost:9002/autobahn",
+                        "agent": "context-takeover-decompression-and-compression-no-tls",
+                        "url": "ws://localhost:9001/context-takeover-decompression-and-compression",
+                        "options": {
+                                "version": 18
+                        }
+                },
+                {
+                        "agent": "context-takeover-decompression-no-tls",
+                        "url": "ws://localhost:9001/context-takeover-decompression",
                         "options": {
                                 "version": 18
                         }

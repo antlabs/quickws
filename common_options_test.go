@@ -1514,7 +1514,7 @@ func Test_CommonOption(t *testing.T) {
 				t.Error(err)
 			}
 
-			if !c.Compression {
+			if !c.pd.Compression {
 				t.Error("compression fail")
 			}
 

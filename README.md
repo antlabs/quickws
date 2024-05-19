@@ -7,8 +7,8 @@ quickws是一个高性能的websocket库
 
 ## 特性
 * 3倍的简单
-* 实现rfc6455
-* 实现rfc7692
+* 完整实现rfc6455
+* 完整实现rfc7692
 
 ## 内容
 * [安装](#Installation)

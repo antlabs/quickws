@@ -538,8 +538,12 @@ func (c *Conn) initDelayWrite() {
 		c.wmu.Unlock()
 	}
 }
+func (c *Conn) isClosed() bool {
+	return atomic.LoadInt32(&c.closed) == 1
+}
+
 func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
-	if atomic.LoadInt32(&c.closed) == 1 {
+	if c.isClosed() {
 		return ErrClosed
 	}
 
@@ -562,6 +566,10 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	}
 
 	c.wmu.Lock()
+	if c.isClosed() {
+		c.wmu.Unlock()
+		return nil
+	}
 	// 初始化缓存
 	if c.delayBuf == nil && c.delayWriteInitBufferSize > 0 {
 
@@ -581,6 +589,10 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 	}
 	// 缓存的消息超过最大值, 则直接写入
 	c.wmu.Lock()
+	if c.isClosed() {
+		c.wmu.Unlock()
+		return
+	}
 	if c.delayNum+1 == c.maxDelayWriteNum {
 		err = frame.WriteFrameToBytes(c.delayBuf, writeBuf, true, rsv1, c.client, op, maskValue)
 		if err != nil {

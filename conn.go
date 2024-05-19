@@ -456,7 +456,7 @@ func (c *Conn) writeFragment(op Opcode, writeBuf []byte, maxFragment int /*单�
 		}
 	}
 
-	rsv1 := c.Compression && (op == opcode.Text || op == opcode.Binary)
+	rsv1 := c.pd.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
 		writeBufPtr, err := c.encoode(&writeBuf)
 		if err != nil {
@@ -551,7 +551,7 @@ func (c *Conn) WriteMessageDelay(op Opcode, writeBuf []byte) (err error) {
 
 	// 初始化对应的资源
 	c.initDelayWrite()
-	rsv1 := c.Compression && (op == opcode.Text || op == opcode.Binary)
+	rsv1 := c.pd.Compression && (op == opcode.Text || op == opcode.Binary)
 	if rsv1 {
 		writeBufPtr, err := c.encoode(&writeBuf)
 		if err != nil {

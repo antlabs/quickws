@@ -125,14 +125,12 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	}
 
 	var fr fixedreader.FixedReader
-	var bp bytespool.BytesPool
-	bp.Init()
 	if conf.parseMode == ParseModeWindows {
 		fr.Init(conn, bytespool.GetBytes(conf.initPayloadSize()))
 	}
 
 	conn.SetDeadline(time.Time{})
-	wsCon := newConn(conn, false, conf, fr, br, bp)
+	wsCon := newConn(conn, false, conf, fr, br)
 
 	wsCon.pd = pd
 	return wsCon, nil

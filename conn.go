@@ -84,7 +84,7 @@ func setNoDelay(c net.Conn, noDelay bool) error {
 	return nil
 }
 
-func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, read *bufio.Reader, bp bytespool.BytesPool) *Conn {
+func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, br *bufio.Reader) *Conn {
 	_ = setNoDelay(c, conf.tcpNoDelay)
 
 	con := &Conn{
@@ -92,7 +92,7 @@ func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, 
 		client: client,
 		Config: conf,
 		fr:     fr,
-		br:     read,
+		br:     br,
 	}
 
 	return con

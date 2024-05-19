@@ -50,9 +50,17 @@ func WithClientCompression() ClientOption {
 	}
 }
 
-// 5.配置压缩和解压缩
+// 5.1配置客户端压缩和解压缩
 func WithClientDecompressAndCompress() ClientOption {
 	return func(o *DialOption) {
+		o.Compression = true
+		o.Decompression = true
+	}
+}
+
+// 5.2配置服务端压缩和解压缩
+func WithServerDecompressAndCompress() ServerOption {
+	return func(o *ConnOption) {
 		o.Compression = true
 		o.Decompression = true
 	}

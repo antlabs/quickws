@@ -187,7 +187,7 @@ func (d *DialOption) tlsConn(c net.Conn) net.Conn {
 	return c
 }
 
-func (d *DialOption) Dial() (c *Conn, err error) {
+func (d *DialOption) Dial() (wsCon *Conn, err error) {
 	// scheme ws -> http
 	// scheme wss -> https
 	req, secWebSocket, err := d.handshake()
@@ -275,8 +275,6 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 
 	// 处理下已经在bufio里面的数据，后面都是直接操作net.Conn，所以需要取出bufio里面已读取的数据
 	var fr fixedreader.FixedReader
-	var bp bytespool.BytesPool
-	bp.Init()
 	if d.parseMode == ParseModeWindows {
 		fr.Init(conn, bytespool.GetBytes(1024+enum.MaxFrameHeaderSize))
 		if br.Buffered() > 0 {
@@ -301,7 +299,7 @@ func (d *DialOption) Dial() (c *Conn, err error) {
 	}
 	// fmt.Println(brw.Reader.Buffered())
 	conn.SetDeadline(time.Time{})
-	wsCon := newConn(conn, true /* client is true*/, &d.Config, fr, br, bp)
+	wsCon = newConn(conn, true /* client is true*/, &d.Config, fr, br)
 	wsCon.pd = pd
 	return wsCon, nil
 }

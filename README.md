@@ -6,15 +6,17 @@ quickws是一个高性能的websocket库
 [![Go Report Card](https://goreportcard.com/badge/github.com/antlabs/quickws)](https://goreportcard.com/report/github.com/antlabs/quickws)
 
 ## 特性
-* 3倍的简单
 * 完整实现rfc6455
 * 完整实现rfc7692
+* 高tps
+* 低内存占用
+* 池化管理所有buffer
 
 ## 内容
 * [安装](#Installation)
 * [例子](#example)
-	* [标准库服务端](#标准库服务端)
-	* [gin服务端](#gin服务端)
+	* [net/http升级到websocket服务端](#net-http升级到websocket服务端)
+	* [gin升级到websocket服务端](#gin升级到websocket服务端)
 	* [客户端](#客户端)
 * [配置函数](#配置函数)
 	* [客户端配置参数](#客户端配置)
@@ -34,7 +36,7 @@ go get github.com/antlabs/quickws
 ```
 
 ## example
-### 标准库服务端
+### net http升级到websocket服务端
 ```go
 
 package main
@@ -87,7 +89,7 @@ func main() {
 }
 
 ```
-### gin服务端
+### gin升级到websocket服务端
 ```go
 package main
 

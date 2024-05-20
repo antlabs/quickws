@@ -37,6 +37,7 @@ import (
 	"github.com/antlabs/wsutil/fixedwriter"
 	"github.com/antlabs/wsutil/frame"
 	"github.com/antlabs/wsutil/limitreader"
+	"github.com/antlabs/wsutil/myonce"
 	"github.com/antlabs/wsutil/opcode"
 )
 
@@ -70,7 +71,9 @@ type Conn struct {
 	deCtx                *deflate.DeCompressContextTakeover // 解压缩上下文
 	enCtx                *deflate.CompressContextTakeover   // 压缩上下文
 	closed               int32                              // 0: open, 1: closed
-	client               bool                               // client(true) or server(flase)
+	mu2                  sync.Mutex
+	onCloseOnce          myonce.MyOnce // 保证只调用一次OnClose函数
+	client               bool          // client(true) or server(flase)
 }
 
 func setNoDelay(c net.Conn, noDelay bool) error {
@@ -105,7 +108,11 @@ func (c *Conn) NetConn() net.Conn {
 
 func (c *Conn) writeAndMaybeOnClose(err error) error {
 	var sc *StatusCode
-	defer c.Callback.OnClose(c, err)
+	defer func() {
+		c.onCloseOnce.Do(&c.mu2, func() {
+			c.Callback.OnClose(c, err)
+		})
+	}()
 
 	if errors.As(err, &sc) {
 		if err := c.WriteTimeout(opcode.Close, sc.toBytes(), 2*time.Second); err != nil {
@@ -116,7 +123,11 @@ func (c *Conn) writeAndMaybeOnClose(err error) error {
 }
 
 func (c *Conn) writeErrAndOnClose(code StatusCode, userErr error) error {
-	defer c.Callback.OnClose(c, userErr)
+	defer func() {
+		c.onCloseOnce.Do(&c.mu2, func() {
+			c.Callback.OnClose(c, userErr)
+		})
+	}()
 	if err := c.WriteTimeout(opcode.Close, code.toBytes(), 2*time.Second); err != nil {
 		return err
 	}
@@ -180,7 +191,10 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPa
 	if c.readTimeout > 0 {
 		err = c.c.SetReadDeadline(time.Now().Add(c.readTimeout))
 		if err != nil {
-			c.Callback.OnClose(c, err)
+
+			c.onCloseOnce.Do(&c.mu2, func() {
+				c.Callback.OnClose(c, err)
+			})
 			return
 		}
 	}
@@ -204,7 +218,9 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPa
 
 	if c.readTimeout > 0 {
 		if err = c.c.SetReadDeadline(time.Time{}); err != nil {
-			c.Callback.OnClose(c, err)
+			c.onCloseOnce.Do(&c.mu2, func() {
+				c.Callback.OnClose(c, err)
+			})
 		}
 	}
 	return
@@ -250,7 +266,9 @@ func (c *Conn) readMessage() (err error) {
 				// 这里的check按道理应该放到f.Fin前面， 会更符合rfc的标准, 前提是c.utf8Check修改成流式解析
 				// TODO c.utf8Check 修改成流式解析
 				if c.fragmentFrameHeader.Opcode == opcode.Text && !c.utf8Check(*c.fragmentFramePayload) {
-					c.Callback.OnClose(c, ErrTextNotUTF8)
+					c.onCloseOnce.Do(&c.mu2, func() {
+						c.Callback.OnClose(c, ErrTextNotUTF8)
+					})
 					return ErrTextNotUTF8
 				}
 
@@ -300,7 +318,9 @@ func (c *Conn) readMessage() (err error) {
 		if f.Opcode == opcode.Text {
 			if !c.utf8Check(*f.Payload) {
 				c.c.Close()
-				c.Callback.OnClose(c, ErrTextNotUTF8)
+				c.onCloseOnce.Do(&c.mu2, func() {
+					c.Callback.OnClose(c, ErrTextNotUTF8)
+				})
 				return ErrTextNotUTF8
 			}
 		}
@@ -326,7 +346,8 @@ func (c *Conn) readMessage() (err error) {
 
 		if f.Opcode == Close {
 			if len(*f.Payload) == 0 {
-				return c.writeErrAndOnClose(NormalClosure, ErrClosePayloadTooSmall)
+				c.writeErrAndOnClose(NormalClosure, &CloseErrMsg{Code: NormalClosure})
+				return nil
 			}
 
 			if len(*f.Payload) < 2 {
@@ -348,7 +369,9 @@ func (c *Conn) readMessage() (err error) {
 			}
 
 			err = bytesToCloseErrMsg(*f.Payload)
-			c.Callback.OnClose(c, err)
+			c.onCloseOnce.Do(&c.mu2, func() {
+				c.Callback.OnClose(c, err)
+			})
 			return err
 		}
 
@@ -356,7 +379,9 @@ func (c *Conn) readMessage() (err error) {
 			// 回一个pong包
 			if c.replyPing {
 				if err := c.WriteTimeout(Pong, *f.Payload, 2*time.Second); err != nil {
-					c.Callback.OnClose(c, err)
+					c.onCloseOnce.Do(&c.mu2, func() {
+						c.Callback.OnClose(c, err)
+					})
 					return err
 				}
 				c.Callback.OnMessage(c, f.Opcode, *f.Payload)

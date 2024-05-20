@@ -67,7 +67,7 @@ func (s StatusCode) String() string {
 		return "ServerTerminating"
 	}
 
-	return "unkown"
+	return "unknown"
 }
 
 func (s StatusCode) Error() string {

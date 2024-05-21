@@ -26,9 +26,14 @@ quickws是一个高性能的websocket库
 		* [配置socks5代理](#配置socks5代理)
 		* [配置proxy代理](#配置proxy代理)
 		* [配置客户端最大读取message](#配置客户端最大读message)
+		* [配置客户端压缩和解压消息](#配置客户端压缩和解压消息)
+		* [配置客户端上下文接管](#配置客户端上下文接管)
 	* [服务配置参数](#服务端配置)
 		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
 		* [配置服务端最大读取message](#配置服务端最大读message)
+		* [配置服务端解压消息](#配置服务端解压消息)
+		* [配置服务端压缩和解压消息](#配置服务端压缩和解压消息)
+		* [配置服务端上下文接管](#配置服务端上下文接管)
 ## 注意⚠️
 quickws默认返回read buffer的浅引用，如果生命周期超过OnMessage的，需要clone一份再使用
 
@@ -207,6 +212,7 @@ func main() {
 	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientReplyPing())
 }
 ```
+[返回](#内容)
 #### 配置socks5代理
 ```go
 import(
@@ -239,8 +245,24 @@ func main() {
 [返回](#内容)
 #### 配置客户端最大读message
 ```go
+func main() {
 	// 限制客户端最大服务返回返回的最大包是1024，如果超过这个大小报错
 	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientReadMaxMessage(1024))
+}
+```
+[返回](#内容)
+#### 配置客户端压缩和解压消息
+```go
+func main() {
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientDecompressAndCompress())
+}
+```
+[返回](#内容)
+#### 配置客户端上下文接管
+```go
+func main() {
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientContextTakeover())
+}
 ```
 [返回](#内容)
 ### 服务端配置参数
@@ -261,6 +283,41 @@ func main() {
 func main() {
 	// 配置服务端读取客户端最大的包是1024大小, 超过该值报错
 	c, err := quickws.Upgrade(w, r, quickws.WithServerReadMaxMessage(1024))
+        if err != nil {
+                fmt.Println("Upgrade fail:", err)
+                return
+        }   
+}
+```
+[返回](#内容)
+#### 配置服务端解压消息
+```go
+func main() {
+	// 配置服务端读取客户端最大的包是1024大小, 超过该值报错
+	c, err := quickws.Upgrade(w, r, quickws.WithServerDecompression())
+        if err != nil {
+                fmt.Println("Upgrade fail:", err)
+                return
+        }   
+}
+```
+[返回](#内容)
+#### 配置服务端压缩和解压消息
+```go
+func main() {
+	c, err := quickws.Upgrade(w, r, quickws.WithServerDecompressAndCompress())
+        if err != nil {
+                fmt.Println("Upgrade fail:", err)
+                return
+        }   
+}
+```
+[返回](#内容)
+#### 配置服务端上下文接管
+```go
+func main() {
+	// 配置服务端读取客户端最大的包是1024大小, 超过该值报错
+	c, err := quickws.Upgrade(w, r, quickws.WithServerContextTakeover)
         if err != nil {
                 fmt.Println("Upgrade fail:", err)
                 return

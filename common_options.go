@@ -379,3 +379,19 @@ func WithServerReadMaxMessage(size int64) ServerOption {
 		o.readMaxMessage = size
 	}
 }
+
+// 22.1配置客户端压缩和解压缩
+func WithClientDecompressAndCompress() ClientOption {
+	return func(o *DialOption) {
+		o.Compression = true
+		o.Decompression = true
+	}
+}
+
+// 22.2配置服务端压缩和解压缩
+func WithServerDecompressAndCompress() ServerOption {
+	return func(o *ConnOption) {
+		o.Compression = true
+		o.Decompression = true
+	}
+}

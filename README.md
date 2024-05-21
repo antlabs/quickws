@@ -146,7 +146,6 @@ import (
 	"time"
 
 	"github.com/antlabs/quickws"
-	"github.com/antlabs/wsutil/opcode"
 )
 
 type handler struct{}
@@ -243,6 +242,7 @@ func main() {
 	// 限制客户端最大服务返回返回的最大包是1024，如果超过这个大小报错
 	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientReadMaxMessage(1024))
 ```
+[返回](#内容)
 ### 服务端配置参数
 #### 配置服务自动回复ping消息
 ```go

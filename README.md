@@ -25,8 +25,10 @@ quickws是一个高性能的websocket库
 		* [配置自动回复ping消息](#配置自动回复ping消息)
 		* [配置socks5代理](#配置socks5代理)
 		* [配置proxy代理](#配置proxy代理)
+		* [配置客户端最大读取message](#配置客户端最大读message)
 	* [服务配置参数](#服务端配置)
 		* [配置服务自动回复ping消息](#配置服务自动回复ping消息)
+		* [配置服务端最大读取message](#配置服务端最大读message)
 ## 注意⚠️
 quickws默认返回read buffer的浅引用，如果生命周期超过OnMessage的，需要clone一份再使用
 
@@ -89,6 +91,8 @@ func main() {
 }
 
 ```
+
+[返回](#内容)
 ### gin升级到websocket服务端
 ```go
 package main
@@ -132,6 +136,7 @@ func main() {
 	r.Run()
 }
 ```
+[返回](#内容)
 ### 客户端
 ```go
 package main
@@ -175,6 +180,7 @@ func main() {
 	c.ReadLoop()
 }
 ```
+[返回](#内容)
 
 ## 配置函数
 ### 客户端配置参数
@@ -187,12 +193,14 @@ func main() {
 	}))
 }
 ```
+[返回](#内容)
 #### 配置握手时的超时时间
 ```go
 func main() {
 	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientDialTimeout(2 * time.Second))
 }
 ```
+[返回](#内容)
 
 #### 配置自动回复ping消息
 ```go
@@ -213,6 +221,7 @@ func main() {
     }))
 }
 ```
+[返回](#内容)
 #### 配置proxy代理
 ```go
 import(
@@ -228,6 +237,12 @@ func main() {
     quickws.Dial("ws://127.0.0.1:12345", quickws.WithClientProxyFunc(proxy))
 }
 ```
+[返回](#内容)
+#### 配置客户端最大读message
+```go
+	// 限制客户端最大服务返回返回的最大包是1024，如果超过这个大小报错
+	quickws.Dial("ws://127.0.0.1:12345/test", quickws.WithClientReadMaxMessage(1024))
+```
 ### 服务端配置参数
 #### 配置服务自动回复ping消息
 ```go
@@ -239,7 +254,20 @@ func main() {
         }   
 }
 ```
+[返回](#内容)
 
+#### 配置服务端最大读message
+```go
+func main() {
+	// 配置服务端读取客户端最大的包是1024大小, 超过该值报错
+	c, err := quickws.Upgrade(w, r, quickws.WithServerReadMaxMessage(1024))
+        if err != nil {
+                fmt.Println("Upgrade fail:", err)
+                return
+        }   
+}
+```
+[返回](#内容)
 ## 常见问题
 ### 1.为什么quickws不标榜zero upgrade?
 第一：quickws 是基于 std 的方案实现的 websocket 协议。

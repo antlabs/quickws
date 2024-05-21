@@ -1844,4 +1844,114 @@ func Test_CommonOption(t *testing.T) {
 			t.Error("not run server:method fail")
 		}
 	})
+
+	t.Run("22.1.WithServerReadMaxMessage:local-Upgrade", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := Upgrade(w, r, WithServerCallback(&tsort), WithServerReadMaxMessage(1<<10))
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Text, bytes.Repeat([]byte("1"), 1025))
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(1000 * time.Millisecond):
+			t.Errorf(" Test_ServerOption:WithServerReadTimeout timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("22.2.WithServerReadMaxMessage", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadMaxMessage(1<<10))
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		con.WriteMessage(Text, bytes.Repeat([]byte("1"), 1025))
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Errorf(" Test_ServerOption:WithServerReadTimeout timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+
+	t.Run("22.3.WithClientReadMaxMessage", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			c.WriteMessage(Binary, bytes.Repeat([]byte("1"), 1025))
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientBufioParseMode(), WithClientReadMaxMessage(1<<10), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
+		}))
+		if err != nil {
+			t.Error(err)
+		}
+		defer con.Close()
+
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Errorf(" Test_ServerOption:WithServerReadTimeout timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
 }

@@ -206,7 +206,11 @@ func Test_ClientOption(t *testing.T) {
 	t.Run("18 Dial: WithClientDialFunc.1", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, err := Upgrade(w, r, WithServerOnMessageFunc(func(c *Conn, o Opcode, b []byte) {
-				c.WriteMessage(o, b)
+				err := c.WriteMessage(o, b)
+				if err != nil {
+					t.Error(err)
+					return
+				}
 				c.Close()
 			}))
 			if err != nil {
@@ -228,7 +232,11 @@ func Test_ClientOption(t *testing.T) {
 				t.Error(err)
 			}
 
-			newConn.SetDeadline(time.Now().Add(30 * time.Second))
+			err = newConn.SetDeadline(time.Now().Add(30 * time.Second))
+			if err != nil {
+				t.Error(err)
+				return
+			}
 
 			buf := make([]byte, 128)
 			if _, err := io.ReadFull(newConn, buf[:3]); err != nil {
@@ -274,10 +282,19 @@ func Test_ClientOption(t *testing.T) {
 			defer c2.Close()
 			done := make(chan struct{})
 			go func() {
-				io.Copy(newConn, c2)
+				_, err := io.Copy(newConn, c2)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
 				close(done)
 			}()
-			io.Copy(c2, newConn)
+			_, err = io.Copy(c2, newConn)
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			<-done
 		}()
 
@@ -294,8 +311,12 @@ func Test_ClientOption(t *testing.T) {
 		}
 
 		data := []byte("hello world")
-		c.WriteMessage(Binary, data)
-		c.ReadLoop()
+		err = c.WriteMessage(Binary, data)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_ = c.ReadLoop()
 
 		t.Log("got", string(got), "want", string(data))
 		if !bytes.Equal(got, data) {
@@ -306,7 +327,11 @@ func Test_ClientOption(t *testing.T) {
 	t.Run("18 Dial: WithClientDialFunc.2", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			conn, err := Upgrade(w, r, WithServerOnMessageFunc(func(c *Conn, o Opcode, b []byte) {
-				c.WriteMessage(o, b)
+				err := c.WriteMessage(o, b)
+				if err != nil {
+					t.Error(err)
+					return
+				}
 				c.Close()
 			}))
 			if err != nil {
@@ -328,7 +353,11 @@ func Test_ClientOption(t *testing.T) {
 				t.Error(err)
 			}
 
-			newConn.SetDeadline(time.Now().Add(30 * time.Second))
+			err = newConn.SetDeadline(time.Now().Add(30 * time.Second))
+			if err != nil {
+				t.Error(err)
+				return
+			}
 
 			buf := make([]byte, 128)
 			if _, err := io.ReadFull(newConn, buf[:3]); err != nil {
@@ -374,10 +403,18 @@ func Test_ClientOption(t *testing.T) {
 			defer c2.Close()
 			done := make(chan struct{})
 			go func() {
-				io.Copy(newConn, c2)
+				_, err = io.Copy(newConn, c2)
+				if err != nil {
+					t.Error(err)
+					return
+				}
 				close(done)
 			}()
-			io.Copy(c2, newConn)
+			_, err = io.Copy(c2, newConn)
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			<-done
 		}()
 
@@ -394,8 +431,12 @@ func Test_ClientOption(t *testing.T) {
 		}
 
 		data := []byte("hello world")
-		c.WriteMessage(Binary, data)
-		c.ReadLoop()
+		err = c.WriteMessage(Binary, data)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_ = c.ReadLoop()
 
 		t.Log("got", string(got), "want", string(data))
 		if !bytes.Equal(got, data) {

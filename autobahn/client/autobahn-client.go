@@ -80,7 +80,9 @@ func runTest(caseNo int) {
 		return
 	}
 
-	go c.ReadLoop()
+	go func() {
+		_ = c.ReadLoop()
+	}()
 	<-done
 }
 

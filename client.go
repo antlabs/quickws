@@ -297,8 +297,9 @@ func (d *DialOption) Dial() (wsCon *Conn, err error) {
 		bufio2.ClearReader(br)
 		br = nil
 	}
-	// fmt.Println(brw.Reader.Buffered())
-	conn.SetDeadline(time.Time{})
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return nil, err
+	}
 	wsCon = newConn(conn, true /* client is true*/, &d.Config, fr, br)
 	wsCon.pd = pd
 	return wsCon, nil

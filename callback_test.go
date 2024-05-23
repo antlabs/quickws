@@ -66,7 +66,12 @@ func Test_DefaultCallback(t *testing.T) {
 		}
 		defer con.Close()
 
-		con.WriteMessage(Binary, []byte("hello"))
+		err = con.WriteMessage(Binary, []byte("hello"))
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
 		select {
 		case <-done:
 		case <-time.After(1000 * time.Millisecond):
@@ -86,6 +91,10 @@ func Test_DefaultCallback(t *testing.T) {
 			}
 			c.StartReadLoop()
 			err = c.WriteMessage(Binary, []byte("hello"))
+			if err != nil {
+				t.Error(err)
+				return
+			}
 			atomic.AddInt32(&run, int32(1))
 			done <- true
 		}))
@@ -99,7 +108,11 @@ func Test_DefaultCallback(t *testing.T) {
 		}
 		defer con.Close()
 
-		con.WriteMessage(Binary, []byte("hello"))
+		err = con.WriteMessage(Binary, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+			return
+		}
 		select {
 		case <-done:
 		case <-time.After(100 * time.Millisecond):

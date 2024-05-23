@@ -64,7 +64,7 @@ func echoNoContextDecompression(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.ReadLoop()
+	_ = c.ReadLoop()
 }
 
 // 2.测试不接管上下文，压缩和解压
@@ -81,7 +81,7 @@ func echoNoContextDecompressionAndCompression(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	c.ReadLoop()
+	_ = c.ReadLoop()
 }
 
 // 3.测试接管上下文，解压
@@ -99,7 +99,7 @@ func echoContextTakeoverDecompression(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.ReadLoop()
+	_ = c.ReadLoop()
 }
 
 // 4.测试接管上下文，压缩/解压缩
@@ -117,7 +117,7 @@ func echoContextTakeoverDecompressionAndCompression(w http.ResponseWriter, r *ht
 		return
 	}
 
-	c.ReadLoop()
+	_ = c.ReadLoop()
 }
 func echoReadTime(w http.ResponseWriter, r *http.Request) {
 	c, err := quickws.Upgrade(w, r,
@@ -133,7 +133,7 @@ func echoReadTime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.ReadLoop()
+	_ = c.ReadLoop()
 }
 
 func startTLSServer(mux *http.ServeMux) {

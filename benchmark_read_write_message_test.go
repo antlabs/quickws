@@ -113,7 +113,7 @@ func Benchmark_WriteMessage(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			c.WriteMessage(opcode.Binary, buf)
+			_ = c.WriteMessage(opcode.Binary, buf)
 			buf2.Reset()
 		}
 	})
@@ -141,8 +141,8 @@ func Benchmark_ReadMessage(b *testing.B) {
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			c.WriteMessage(opcode.Binary, wbuf)
-			c.ReadLoop()
+			_ = c.WriteMessage(opcode.Binary, wbuf)
+			_ = c.ReadLoop()
 			buf2.Reset()
 		}
 	})

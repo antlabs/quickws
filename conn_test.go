@@ -374,10 +374,11 @@ func TestFragmentFrame(t *testing.T) {
 		}))
 		if err != nil {
 			t.Error(err)
+			return
 		}
 		defer con.Close()
 
-		err = con.writeFragment(Ping, []byte("hello"), 1)
+		err = con.writeFragment(Ping, []byte("ho"), 1)
 		if err != nil {
 			t.Error(err)
 			return

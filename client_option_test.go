@@ -31,23 +31,6 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-// // 实现安全的net.Conn
-// type safeConn struct {
-// 	net.Conn
-// 	sync.Mutex
-// }
-
-// func (s *safeConn) Write(b []byte) (n int, err error) {
-// 	s.Lock()
-// 	defer s.Unlock()
-// 	return s.Conn.Write(b)
-// }
-
-//	func (s *safeConn) Read(b []byte) (n int, err error) {
-//		s.Lock()
-//		defer s.Unlock()
-//		return s.Conn.Read(b)
-//	}
 func Test_ClientOption(t *testing.T) {
 	t.Run("ClientOption.WithClientHTTPHeader", func(t *testing.T) {
 		done := make(chan string, 1)

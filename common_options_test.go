@@ -1698,6 +1698,7 @@ func Test_CommonOption(t *testing.T) {
 	t.Run("13-15.client: WriteMessageDelay", func(t *testing.T) {
 		run := int32(0)
 		data := make(chan string, 1)
+		recvServer := int32(0)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := Upgrade(w, r,
 				WithServerDecompressAndCompress(),
@@ -1708,8 +1709,10 @@ func Test_CommonOption(t *testing.T) {
 						t.Error(err)
 						return
 					}
-					atomic.AddInt32(&run, int32(1))
-					data <- string(payload)
+					atomic.AddInt32(&recvServer, int32(1))
+					if atomic.LoadInt32(&recvServer) == 3 {
+						c.Close()
+					}
 				}))
 			if err != nil {
 				t.Error(err)
@@ -1720,6 +1723,7 @@ func Test_CommonOption(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		recv := int32(0)
 		con, err := Dial(url, WithClientDecompressAndCompress(),
 			WithClientDecompression(),
 			WithClientMaxDelayWriteDuration(30*time.Millisecond),
@@ -1727,21 +1731,9 @@ func Test_CommonOption(t *testing.T) {
 			WithClientWindowsParseMode(),
 			WithClientDelayWriteInitBufferSize(4096),
 			WithClientOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-				err := c.WriteMessageDelay(op, []byte("hello"))
-				if err != nil {
-					t.Error(err)
-					return
-				}
-
-				err = c.WriteMessageDelay(op, []byte("hello"))
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				err = c.WriteMessageDelay(op, []byte("hello"))
-				if err != nil {
-					t.Error(err)
-					return
+				atomic.AddInt32(&recv, int32(1))
+				if atomic.LoadInt32(&recv) == 3 {
+					data <- "hello"
 				}
 			}))
 		if err != nil {
@@ -1749,7 +1741,18 @@ func Test_CommonOption(t *testing.T) {
 		}
 		defer con.Close()
 
-		err = con.WriteMessage(Binary, []byte("hello"))
+		err = con.WriteMessageDelay(Text, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		err = con.WriteMessageDelay(Text, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		err = con.WriteMessageDelay(Text, []byte("hello"))
 		if err != nil {
 			t.Error(err)
 			return
@@ -1760,10 +1763,11 @@ func Test_CommonOption(t *testing.T) {
 			if d != "hello" {
 				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
 			}
+			run++
 		case <-time.After(1000 * time.Millisecond):
 		}
 		if atomic.LoadInt32(&run) != 1 {
-			t.Error("not run server:method fail")
+			t.Errorf("not run server:method fail:%d", atomic.LoadInt32(&run))
 		}
 	})
 
@@ -1773,14 +1777,13 @@ func Test_CommonOption(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := Upgrade(w, r,
 				WithServerDecompressAndCompress(),
-				// WithServerBufioParseMode(),
 				WithServerCallbackFunc(nil, func(c *Conn, op Opcode, payload []byte) {
-					if op != Binary {
+					if op != Text {
 						t.Error("opcode error")
 					}
-					err := c.WriteMessage(op, payload)
-					if err != nil {
-						t.Error(err)
+					err1 := c.WriteMessage(op, payload)
+					if err1 != nil {
+						t.Errorf("c.WriteMessage:%v", err1)
 						return
 					}
 				}, func(c *Conn, err error) {
@@ -1804,6 +1807,7 @@ func Test_CommonOption(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		recv := int32(0)
 		con, err := Dial(url,
 			WithClientDecompressAndCompress(),
 			WithClientMaxDelayWriteDuration(30*time.Millisecond),
@@ -1811,23 +1815,14 @@ func Test_CommonOption(t *testing.T) {
 			WithClientWindowsParseMode(),
 			WithClientDelayWriteInitBufferSize(4096),
 			WithClientOnMessageFunc(func(c *Conn, op Opcode, payload []byte) {
-				if op != Binary {
+				if op != Text {
 					t.Error("opcode error")
 				}
-				err := c.WriteMessageDelay(op, []byte("hello"))
-				if err != nil {
-					t.Error(err)
+				atomic.AddInt32(&recv, int32(1))
+				if atomic.LoadInt32(&recv) == 3 {
+					data <- "hello"
 				}
-				err = c.WriteMessageDelay(op, []byte("hello"))
-				if err != nil {
-					t.Error(err)
-				}
-				err = c.WriteMessageDelay(op, []byte("hello"))
-				if err != nil {
-					t.Error(err)
-				}
-				data <- "hello"
-				atomic.AddInt32(&run, int32(1))
+				// atomic.AddInt32(&run, int32(1))
 			}))
 		if err != nil {
 			t.Error(err)
@@ -1837,7 +1832,15 @@ func Test_CommonOption(t *testing.T) {
 		if !con.Compression {
 			t.Error("not compression:method fail")
 		}
-		err = con.WriteMessage(Binary, []byte("hello"))
+		err = con.WriteMessageDelay(Text, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+		}
+		err = con.WriteMessageDelay(Text, []byte("hello"))
+		if err != nil {
+			t.Error(err)
+		}
+		err = con.WriteMessageDelay(Text, []byte("hello"))
 		if err != nil {
 			t.Error(err)
 		}
@@ -1848,6 +1851,7 @@ func Test_CommonOption(t *testing.T) {
 			if d != "hello" {
 				t.Errorf("write message or read message fail:got:%s, need:hello\n", d)
 			}
+			run++
 		case <-time.After(1000 * time.Millisecond):
 			t.Errorf("write message timeout\n")
 		}

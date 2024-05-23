@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -30,6 +31,23 @@ import (
 	"golang.org/x/net/proxy"
 )
 
+// // 实现安全的net.Conn
+// type safeConn struct {
+// 	net.Conn
+// 	sync.Mutex
+// }
+
+// func (s *safeConn) Write(b []byte) (n int, err error) {
+// 	s.Lock()
+// 	defer s.Unlock()
+// 	return s.Conn.Write(b)
+// }
+
+//	func (s *safeConn) Read(b []byte) (n int, err error) {
+//		s.Lock()
+//		defer s.Unlock()
+//		return s.Conn.Read(b)
+//	}
 func Test_ClientOption(t *testing.T) {
 	t.Run("ClientOption.WithClientHTTPHeader", func(t *testing.T) {
 		done := make(chan string, 1)
@@ -401,21 +419,76 @@ func Test_ClientOption(t *testing.T) {
 				return
 			}
 			defer c2.Close()
-			done := make(chan struct{})
+
+			// done := make(chan struct{})
+			// newConn = &safeConn{Conn: newConn}
+			// c2  = &safeConn{Conn: c2}
+			// go func() {
+			// 	_, err = io.Copy(newConn, c2)
+			// 	if err != nil {
+			// 		t.Error(err)
+			// 		return
+			// 	}
+			// 	close(done)
+			// }()
+			// _, err = io.Copy(c2, newConn)
+			// if err != nil {
+			// 	t.Error(err)
+			// 	return
+			// }
+			// <-done
+
+			var (
+				newConnMu sync.Mutex
+				c2Mu      sync.Mutex
+				wg        sync.WaitGroup
+			)
+
+			wg.Add(2)
+
 			go func() {
-				_, err = io.Copy(newConn, c2)
-				if err != nil {
-					t.Error(err)
-					return
+				defer wg.Done()
+				buf := make([]byte, 4096)
+				for {
+					n, err := c2.Read(buf)
+					if err != nil {
+						if err != io.EOF {
+							t.Error(err)
+						}
+						break
+					}
+					newConnMu.Lock()
+					_, err = newConn.Write(buf[:n])
+					newConnMu.Unlock()
+					if err != nil {
+						t.Error(err)
+						break
+					}
 				}
-				close(done)
 			}()
-			_, err = io.Copy(c2, newConn)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			<-done
+
+			go func() {
+				defer wg.Done()
+				buf := make([]byte, 4096)
+				for {
+					n, err := newConn.Read(buf)
+					if err != nil {
+						if err != io.EOF {
+							t.Error(err)
+						}
+						break
+					}
+					c2Mu.Lock()
+					_, err = c2.Write(buf[:n])
+					c2Mu.Unlock()
+					if err != nil {
+						t.Error(err)
+						break
+					}
+				}
+			}()
+
+			wg.Wait()
 		}()
 
 		got := make([]byte, 0, 128)

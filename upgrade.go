@@ -79,7 +79,7 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		}
 		// TODO
 		// rsp.ClearRsp(w)
-		rw = nil
+		// rw = nil
 	} else {
 		var rw *bufio.ReadWriter
 		conn, rw, err = hi.Hijack()
@@ -122,7 +122,9 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 		fr.Init(conn, bytespool.GetBytes(conf.initPayloadSize()))
 	}
 
-	conn.SetDeadline(time.Time{})
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return nil, err
+	}
 	wsCon := newConn(conn, false, conf, fr, br)
 
 	wsCon.pd = pd

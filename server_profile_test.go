@@ -53,7 +53,7 @@ func (e *echoClientHandler) OnMessage(c *Conn, op Opcode, msg []byte) {
 	if e.Count == 100 {
 		c.Close()
 	}
-	c.WriteMessage(op, msg)
+	_ = c.WriteMessage(op, msg)
 }
 
 func newProfileServrEcho(t *testing.T, data []byte) *httptest.Server {
@@ -64,7 +64,7 @@ func newProfileServrEcho(t *testing.T, data []byte) *httptest.Server {
 			return
 		}
 
-		c.ReadLoop()
+		c.StartReadLoop()
 	}))
 
 	ts.URL = "ws" + strings.TrimPrefix(ts.URL, "http")
@@ -92,8 +92,12 @@ func Test_ServerProfile(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			c.WriteMessage(Binary, payload)
-			c.ReadLoop()
+			err = c.WriteMessage(Binary, payload)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			c.StartReadLoop()
 		}()
 	}
 }
@@ -106,6 +110,10 @@ func Test_Upgrade(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	prepareWriteResponse(r, &out, &Config{}, deflate.PermessageDeflateConf{})
+	err = prepareWriteResponse(r, &out, &Config{}, deflate.PermessageDeflateConf{})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	fmt.Printf("%s\n %d", out.Bytes(), out.Len())
 }

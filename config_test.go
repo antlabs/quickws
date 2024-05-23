@@ -34,11 +34,11 @@ func Test_InitPayloadSize(t *testing.T) {
 
 func TestConfig_defaultSetting(t *testing.T) {
 	type fields struct {
-		Callback                        Callback
-		tcpNoDelay                      bool
-		replyPing                       bool
-		decompression                   bool
-		compression                     bool
+		Callback   Callback
+		tcpNoDelay bool
+		replyPing  bool
+		// decompression                   bool
+		// compression                     bool
 		ignorePong                      bool
 		disableBufioClearHack           bool
 		utf8Check                       func([]byte) bool

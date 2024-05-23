@@ -21,26 +21,29 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"reflect"
+	"sync"
 	"time"
 	"unsafe"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+var mu sync.Mutex
 var uuid = []byte("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 
-// StringToBytes 没有内存开销的转换
-func StringToBytes(s string) (b []byte) {
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh.Data = sh.Data
-	bh.Len = sh.Len
-	bh.Cap = sh.Len
-	return b
+func StringToBytes(s string) []byte {
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
+
+// // StringToBytes 没有内存开销的转换
+// func StringToBytes(s string) (b []byte) {
+// 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+// 	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+// 	bh.Data = sh.Data
+// 	bh.Len = sh.Len
+// 	bh.Cap = sh.Len
+// 	return b
+// }
 
 // func BytesToString(b []byte) string {
 // 	return *(*string)(unsafe.Pointer(&b))
@@ -49,7 +52,9 @@ func StringToBytes(s string) (b []byte) {
 func secWebSocketAccept() string {
 	// rfc规定是16字节
 	var key [16]byte
-	rand.Read(key[:])
+	mu.Lock()
+	rng.Read(key[:])
+	mu.Unlock()
 	return base64.StdEncoding.EncodeToString(key[:])
 }
 

@@ -54,17 +54,21 @@ func (t *testServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := Upgrade(w, r, WithServerOnMessageFunc(func(c *Conn, o Opcode, b []byte) {
-		c.WriteMessage(o, b)
+		err := c.WriteMessage(o, b)
+		if err != nil {
+			t.Error(err)
+			return
+		}
 	}))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	conn.ReadLoop()
+	_ = conn.ReadLoop()
 }
 
 func (t *testServer) clientSend(c *Conn) {
-	c.WriteMessage(Text, []byte("hello world"))
+	_ = c.WriteMessage(Text, []byte("hello world"))
 }
 
 func HTTPToWS(u string) string {

@@ -157,7 +157,9 @@ func (c *Conn) ReadLoop() (err error) {
 		c.Close()
 		if c.fr.IsInit() {
 			defer func() {
-				c.fr.Release()
+				if err1 := c.fr.Release(); err1 != nil {
+					err = err1
+				}
 				c.fr.BufPtr()
 			}()
 		}

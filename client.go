@@ -196,17 +196,17 @@ func (d *DialOption) Dial() (wsCon *Conn, err error) {
 	}
 
 	var conn net.Conn
-	begin := time.Now()
 
 	hostName := hostname.GetHostName(d.u)
-	// conn, err := net.DialTimeout("tcp", d.u.Host /* TODO 加端号*/, d.dialTimeout)
-	dialFunc := net.Dial
+	dialFunc := net.DialTimeout
 	if d.dialFunc != nil {
 		dialInterface, err := d.dialFunc()
 		if err != nil {
 			return nil, err
 		}
-		dialFunc = dialInterface.Dial
+		dialFunc = func(network, address string, timeout time.Duration) (net.Conn, error) {
+			return dialInterface.Dial(network, address)
+		}
 	}
 
 	if d.proxyFunc != nil {
@@ -214,15 +214,13 @@ func (d *DialOption) Dial() (wsCon *Conn, err error) {
 		if err != nil {
 			return nil, err
 		}
-		dialFunc = newhttpProxy(proxyURL, dialFunc).Dial
+		dialFunc = newhttpProxy(proxyURL, dialFunc).DialTimeout
 	}
 
-	conn, err = dialFunc("tcp", hostName)
+	conn, err = dialFunc("tcp", hostName, d.dialTimeout)
 	if err != nil {
 		return nil, err
 	}
-
-	dialDuration := time.Since(begin)
 
 	conn = d.tlsConn(conn)
 	defer func() {
@@ -232,18 +230,7 @@ func (d *DialOption) Dial() (wsCon *Conn, err error) {
 		}
 	}()
 
-	if to := d.dialTimeout - dialDuration; to > 0 {
-		if err = conn.SetDeadline(time.Now().Add(to)); err != nil {
-			return
-		}
-	}
-
-	defer func() {
-		if err == nil {
-			err = conn.SetDeadline(time.Time{})
-		}
-	}()
-
+	err = conn.SetDeadline(time.Time{})
 	if err = req.Write(conn); err != nil {
 		return
 	}

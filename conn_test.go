@@ -608,7 +608,7 @@ func TestFragmentFrame(t *testing.T) {
 		select {
 		case <-data:
 			atomic.AddInt32(&run, 1)
-		case <-time.After(500 * time.Hour):
+		case <-time.After(500 * time.Millisecond):
 		}
 
 		if atomic.LoadInt32(&run) != 1 {

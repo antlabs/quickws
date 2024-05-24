@@ -208,10 +208,11 @@ func (c *Conn) readDataFromNet(headArray *[enum.MaxFrameHeaderSize]byte, bufioPa
 		}
 	} else {
 		r := io.Reader(c.br)
+		var lr io.Reader
 		if c.readMaxMessage > 0 {
-			r = limitreader.NewLimitReader(c.br, c.readMaxMessage)
+			lr = limitreader.NewLimitReader(c.br, c.readMaxMessage)
 		}
-		f, err = frame.ReadFrameFromReaderV2(r, headArray, bufioPayload)
+		f, err = frame.ReadFrameFromReaderV3(r, lr, headArray, bufioPayload)
 	}
 	if err != nil {
 		c.writeAndMaybeOnClose(err)

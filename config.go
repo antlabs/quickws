@@ -27,8 +27,14 @@ import (
 
 var ErrDialFuncAndProxyFunc = errors.New("dialFunc and proxyFunc can't be set at the same time")
 
+// 握手
 type Dialer interface {
 	Dial(network, addr string) (c net.Conn, err error)
+}
+
+// 带超时时间的握手
+type DialerTimeout interface {
+	DialTimeout(network, addr string, timeout time.Duration) (c net.Conn, err error)
 }
 
 // Config的配置，有两个种用法

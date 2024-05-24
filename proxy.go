@@ -20,31 +20,33 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/antlabs/wsutil/hostname"
 )
 
 type (
-	dialFunc  func(network, addr string) (c net.Conn, err error)
+	dialFunc  func(network, addr string, timeout time.Duration) (c net.Conn, err error)
 	httpProxy struct {
-		proxyAddr *url.URL
-		dial      func(network, addr string) (c net.Conn, err error)
+		proxyAddr   *url.URL
+		dialTimeout func(network, addr string, timeout time.Duration) (c net.Conn, err error)
+		timeout     time.Duration
 	}
 )
 
-var _ Dialer = (*httpProxy)(nil)
+var _ DialerTimeout = (*httpProxy)(nil)
 
 func newhttpProxy(u *url.URL, dial dialFunc) *httpProxy {
-	return &httpProxy{proxyAddr: u, dial: dial}
+	return &httpProxy{proxyAddr: u, dialTimeout: dial}
 }
 
-func (h *httpProxy) Dial(network, addr string) (c net.Conn, err error) {
+func (h *httpProxy) DialTimeout(network, addr string, timeout time.Duration) (c net.Conn, err error) {
 	if h.proxyAddr == nil {
-		return h.dial(network, addr)
+		return h.dialTimeout(network, addr, h.timeout)
 	}
 
 	hostName := hostname.GetHostName(h.proxyAddr)
-	c, err = h.dial(network, hostName)
+	c, err = h.dialTimeout(network, hostName, h.timeout)
 	if err != nil {
 		return nil, err
 	}

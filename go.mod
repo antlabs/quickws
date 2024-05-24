@@ -3,7 +3,7 @@ module github.com/antlabs/quickws
 go 1.21
 
 require (
-	github.com/antlabs/wsutil v0.1.10
+	github.com/antlabs/wsutil v0.1.11
 	golang.org/x/net v0.23.0
 )
 

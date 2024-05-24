@@ -2227,13 +2227,14 @@ func Test_CommonOption(t *testing.T) {
 	t.Run("22.3.WithClientReadMaxMessage", func(t *testing.T) {
 		var tsort testServerOptionReadTimeout
 
-		upgrade := NewUpgrade(WithServerCallback(&tsort), WithServerReadTimeout(time.Millisecond*60))
+		upgrade := NewUpgrade()
 		tsort.err = make(chan error, 1)
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := upgrade.Upgrade(w, r)
 			if err != nil {
 				t.Error(err)
 			}
+			time.Sleep(time.Second / 100)
 			err = c.WriteMessage(Binary, bytes.Repeat([]byte("1"), 1025))
 			if err != nil {
 				t.Error(err)
@@ -2245,12 +2246,57 @@ func Test_CommonOption(t *testing.T) {
 		defer ts.Close()
 
 		url := strings.ReplaceAll(ts.URL, "http", "ws")
-		con, err := Dial(url, WithClientBufioParseMode(), WithClientReadMaxMessage(1<<10), WithClientOnMessageFunc(func(c *Conn, mt Opcode, payload []byte) {
-		}))
+		con, err := Dial(url, WithClientCallback(&tsort), WithClientBufioParseMode(), WithClientReadMaxMessage(1<<10))
 		if err != nil {
 			t.Error(err)
+			return
 		}
 		defer con.Close()
+		go func() {
+			_ = con.ReadLoop()
+		}()
+
+		select {
+		case d := <-tsort.err:
+			if d == nil {
+				t.Errorf("got:nil, need:error\n")
+			}
+		case <-time.After(100 * time.Hour):
+			t.Errorf(" Test_ServerOption:WithServerReadMaxMessage timeout\n")
+		}
+		if atomic.LoadInt32(&tsort.run) != 1 {
+			t.Error("not run server:method fail")
+		}
+	})
+	t.Run("22.4.WithClientReadMaxMessage-ParseWindows", func(t *testing.T) {
+		var tsort testServerOptionReadTimeout
+
+		upgrade := NewUpgrade()
+		tsort.err = make(chan error, 1)
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := upgrade.Upgrade(w, r)
+			if err != nil {
+				t.Error(err)
+			}
+			time.Sleep(time.Second / 100)
+			err = c.WriteMessage(Binary, bytes.Repeat([]byte("1"), 1025))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			c.StartReadLoop()
+		}))
+
+		defer ts.Close()
+
+		url := strings.ReplaceAll(ts.URL, "http", "ws")
+		con, err := Dial(url, WithClientCallback(&tsort), WithClientReadMaxMessage(1<<10))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer con.Close()
+		con.StartReadLoop()
 
 		select {
 		case d := <-tsort.err:

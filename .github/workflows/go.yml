@@ -22,7 +22,7 @@ jobs:
       id: go
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v4
+      uses: actions/checkout@main
 
     - name: Get dependencies
       run: |
@@ -45,3 +45,4 @@ jobs:
       with:
         token: ${{secrets.CODECOV_TOKEN}}
         file: ./coverage.out
+        verbose: true

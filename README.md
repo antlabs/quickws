@@ -38,6 +38,8 @@ quickws是一个高性能的websocket库
     * [配置服务端压缩和解压消息](#配置服务端压缩和解压消息)
     * [配置服务端上下文接管](#配置服务端上下文接管)
 
+* [综合例子](#综合例子)
+
 ## 注意⚠️
 
 quickws默认返回read buffer的浅引用，如果生命周期超过OnMessage的，需要clone一份再使用
@@ -378,6 +380,10 @@ func main() {
 ```
 
 [返回](#内容)
+
+## 综合例子
+
+<https://github.com/antlabs/quickws-example>
 
 ## 常见问题
 

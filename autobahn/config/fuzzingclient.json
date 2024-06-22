@@ -2,6 +2,13 @@
         "outdir": "./report/",
         "servers": [
                 {
+                        "agent": "global",
+                        "url": "ws://localhost:9001/global",
+                        "options": {
+                                "version": 18
+                        }
+                },
+                {
                         "agent": "no-context-takeover-decompression-and-compression-no-tls",
                         "url": "ws://localhost:9001/no-context-takeover-decompression-and-compression",
                         "options": {

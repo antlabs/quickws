@@ -23,7 +23,7 @@ import (
 // 0. CallbackFunc
 func WithClientCallbackFunc(open OnOpenFunc, m OnMessageFunc, c OnCloseFunc) ClientOption {
 	return func(o *DialOption) {
-		o.Callback = &funcToCallback{
+		o.cb = &funcToCallback{
 			onOpen:    open,
 			onMessage: m,
 			onClose:   c,
@@ -34,7 +34,7 @@ func WithClientCallbackFunc(open OnOpenFunc, m OnMessageFunc, c OnCloseFunc) Cli
 // 配置服务端回调函数
 func WithServerCallbackFunc(open OnOpenFunc, m OnMessageFunc, c OnCloseFunc) ServerOption {
 	return func(o *ConnOption) {
-		o.Callback = &funcToCallback{
+		o.cb = &funcToCallback{
 			onOpen:    open,
 			onMessage: m,
 			onClose:   c,
@@ -46,14 +46,14 @@ func WithServerCallbackFunc(open OnOpenFunc, m OnMessageFunc, c OnCloseFunc) Ser
 // 配置客户端callback
 func WithClientCallback(cb Callback) ClientOption {
 	return func(o *DialOption) {
-		o.Callback = cb
+		o.cb = cb
 	}
 }
 
 // 配置服务端回调函数
 func WithServerCallback(cb Callback) ServerOption {
 	return func(o *ConnOption) {
-		o.Callback = cb
+		o.cb = cb
 	}
 }
 
@@ -90,14 +90,14 @@ func WithClientEnableUTF8Check() ClientOption {
 // 仅仅配置OnMessae函数
 func WithServerOnMessageFunc(cb OnMessageFunc) ServerOption {
 	return func(o *ConnOption) {
-		o.Callback = OnMessageFunc(cb)
+		o.cb = OnMessageFunc(cb)
 	}
 }
 
 // 仅仅配置OnMessae函数
 func WithClientOnMessageFunc(cb OnMessageFunc) ClientOption {
 	return func(o *DialOption) {
-		o.Callback = OnMessageFunc(cb)
+		o.cb = OnMessageFunc(cb)
 	}
 }
 
@@ -292,14 +292,14 @@ func WithClientReadTimeout(t time.Duration) ClientOption {
 // 17.1 配置服务端OnClose
 func WithServerOnCloseFunc(onClose func(c *Conn, err error)) ServerOption {
 	return func(o *ConnOption) {
-		o.Callback = OnCloseFunc(onClose)
+		o.cb = OnCloseFunc(onClose)
 	}
 }
 
 // 17.2 配置客户端OnClose
 func WithClientOnCloseFunc(onClose func(c *Conn, err error)) ClientOption {
 	return func(o *DialOption) {
-		o.Callback = OnCloseFunc(onClose)
+		o.cb = OnCloseFunc(onClose)
 	}
 }
 

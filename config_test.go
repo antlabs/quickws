@@ -67,7 +67,7 @@ func TestConfig_defaultSetting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Config{
-				Callback:                        tt.fields.Callback,
+				cb:                              tt.fields.Callback,
 				tcpNoDelay:                      tt.fields.tcpNoDelay,
 				replyPing:                       tt.fields.replyPing,
 				ignorePong:                      tt.fields.ignorePong,

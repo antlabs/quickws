@@ -287,7 +287,10 @@ func (d *DialOption) Dial() (wsCon *Conn, err error) {
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	wsCon = newConn(conn, true /* client is true*/, &d.Config, fr, br)
+	if wsCon, err = newConn(conn, true /* client is true*/, &d.Config, fr, br); err != nil {
+		return nil, err
+	}
 	wsCon.pd = pd
+	wsCon.Callback = d.cb
 	return wsCon, nil
 }

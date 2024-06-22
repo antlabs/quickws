@@ -58,6 +58,7 @@ type delayWrite struct {
 type Conn struct {
 	fr                   fixedreader.FixedReader            // 默认使用windows
 	c                    net.Conn                           // net.Conn
+	Callback                                                // callback移至conn中
 	br                   *bufio.Reader                      // read和fr同时只能使用一个
 	*Config                                                 // config 可能是全局，也可能是局部初始化得来的
 	pd                   deflate.PermessageDeflateConf      // permessageDeflate局部配置
@@ -87,10 +88,12 @@ func setNoDelay(c net.Conn, noDelay bool) error {
 	return nil
 }
 
-func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, br *bufio.Reader) *Conn {
-	_ = setNoDelay(c, conf.tcpNoDelay)
+func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, br *bufio.Reader) (wsCon *Conn, err error) {
+	if err = setNoDelay(c, conf.tcpNoDelay); err != nil {
+		return nil, err
+	}
 
-	con := &Conn{
+	wsCon = &Conn{
 		c:      c,
 		client: client,
 		Config: conf,
@@ -98,7 +101,7 @@ func newConn(c net.Conn, client bool, conf *Config, fr fixedreader.FixedReader, 
 		br:     br,
 	}
 
-	return con
+	return wsCon, err
 }
 
 // 返回标准库的net.Conn

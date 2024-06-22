@@ -136,6 +136,24 @@ func echoReadTime(w http.ResponseWriter, r *http.Request) {
 	_ = c.ReadLoop()
 }
 
+var upgrade = quickws.NewUpgrade(
+	quickws.WithServerReplyPing(),
+	quickws.WithServerDecompression(),
+	quickws.WithServerIgnorePong(),
+	quickws.WithServerEnableUTF8Check(),
+	quickws.WithServerReadTimeout(5*time.Second),
+)
+
+func global(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrade.UpgradeV2(w, r, &echoHandler{openWriteTimeout: true})
+	if err != nil {
+		fmt.Println("Upgrade fail:", err)
+		return
+	}
+
+	_ = c.ReadLoop()
+}
+
 func startTLSServer(mux *http.ServeMux) {
 
 	cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
@@ -167,6 +185,7 @@ func startServer(mux *http.ServeMux) {
 func main() {
 	mux := &http.ServeMux{}
 	mux.HandleFunc("/timeout", echoReadTime)
+	mux.HandleFunc("/global", global)
 	mux.HandleFunc("/no-context-takeover-decompression", echoNoContextDecompression)
 	mux.HandleFunc("/no-context-takeover-decompression-and-compression", echoNoContextDecompressionAndCompression)
 	mux.HandleFunc("/context-takeover-decompression", echoContextTakeoverDecompression)

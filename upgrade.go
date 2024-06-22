@@ -43,7 +43,11 @@ func NewUpgrade(opts ...ServerOption) *UpgradeServer {
 }
 
 func (u *UpgradeServer) Upgrade(w http.ResponseWriter, r *http.Request) (c *Conn, err error) {
-	return upgradeInner(w, r, &u.config)
+	return upgradeInner(w, r, &u.config, nil)
+}
+
+func (u *UpgradeServer) UpgradeV2(w http.ResponseWriter, r *http.Request, cb Callback) (c *Conn, err error) {
+	return upgradeInner(w, r, &u.config, cb)
 }
 
 func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *Conn, err error) {
@@ -54,10 +58,10 @@ func Upgrade(w http.ResponseWriter, r *http.Request, opts ...ServerOption) (c *C
 	for _, o := range opts {
 		o(&conf)
 	}
-	return upgradeInner(w, r, &conf.Config)
+	return upgradeInner(w, r, &conf.Config, nil)
 }
 
-func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn, err error) {
+func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config, cb Callback) (wsCon *Conn, err error) {
 	if ecode, err := checkRequest(r); err != nil {
 		http.Error(w, err.Error(), ecode)
 		return nil, err
@@ -125,9 +129,15 @@ func upgradeInner(w http.ResponseWriter, r *http.Request, conf *Config) (c *Conn
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		return nil, err
 	}
-	wsCon := newConn(conn, false, conf, fr, br)
+	if wsCon, err = newConn(conn, false, conf, fr, br); err != nil {
+		return nil, err
+	}
 
 	wsCon.pd = pd
+	wsCon.Callback = cb
+	if cb == nil {
+		wsCon.Callback = conf.cb
+	}
 	return wsCon, nil
 }
 

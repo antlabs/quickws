@@ -41,7 +41,7 @@ type DialerTimeout interface {
 // 一种是声明一个全局的配置，后面不停使用。
 // 另外一种是局部声明一个配置，然后使用WithXXX函数设置配置
 type Config struct {
-	Callback
+	cb                              Callback
 	deflate.PermessageDeflateConf   // 静态配置, 从WithXXX函数中获取
 	tcpNoDelay                      bool
 	replyPing                       bool              // 开启自动回复
@@ -67,7 +67,7 @@ func (c *Config) initPayloadSize() int {
 
 // 默认设置
 func (c *Config) defaultSetting() error {
-	c.Callback = &DefCallback{}
+	c.cb = &DefCallback{}
 	c.maxDelayWriteNum = 10
 	c.windowsMultipleTimesPayloadSize = 1.0
 	c.delayWriteInitBufferSize = 8 * 1024

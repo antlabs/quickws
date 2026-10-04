@@ -136,7 +136,7 @@ func checkRequest(r *http.Request) (ecode int, err error) {
 	}
 
 	// Connection值不是Upgrade
-	if conn := r.Header.Get("Connection"); !strings.EqualFold(conn, "Upgrade") {
+	if !headerContainsToken(r.Header, "Connection", "Upgrade") {
 		return http.StatusBadRequest, ErrConnectionFieldValue
 	}
 

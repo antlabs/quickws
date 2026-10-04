@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -30,6 +31,17 @@ var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 var mu sync.Mutex
 var uuid = []byte("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+
+func headerContainsToken(header http.Header, name, token string) bool {
+	for _, value := range header.Values(name) {
+		for _, part := range strings.Split(value, ",") {
+			if strings.EqualFold(strings.Trim(part, " \t"), token) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 func StringToBytes(s string) []byte {
 	return unsafe.Slice(unsafe.StringData(s), len(s))

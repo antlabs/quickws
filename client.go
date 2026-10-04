@@ -149,7 +149,7 @@ func (d *DialOption) validateRsp(rsp *http.Response, secWebSocket string) error 
 	}
 
 	// 第3点
-	if !strings.EqualFold(rsp.Header.Get("Connection"), "Upgrade") {
+	if !headerContainsToken(rsp.Header, "Connection", "Upgrade") {
 		return ErrConnectionFieldValue
 	}
 
